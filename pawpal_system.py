@@ -1,7 +1,6 @@
-"""Phase 1: System Design with UML + AI Support
+"""Phase 2: Core Implementation
 
-All five core classes are defined here with attribute declarations and
-method signatures only. No scheduling logic is implemented yet.
+Full implementation of Scheduler.generate_plan() and explain_plan().
 """
 
 from __future__ import annotations
@@ -54,6 +53,10 @@ class Task:
     frequency: str
     completion_status: bool = False
     notes: str = ""
+
+    def mark_complete(self) -> None:
+        """Mark this task as completed."""
+        self.completion_status = True
 
 
 @dataclass
@@ -147,7 +150,25 @@ class Scheduler:
             A Schedule whose .tasks list contains every task that fit,
             and whose .unscheduled list contains every task that did not.
         """
-        pass
+        all_tasks = [task for pet in self.owner.pets for task in pet.tasks]
+
+        sorted_tasks = sorted(
+            all_tasks,
+            key=lambda t: (-PRIORITY_ORDER[t.priority], t.duration_minutes),
+        )
+
+        schedule = Schedule()
+        remaining = self.owner.available_minutes
+
+        for task in sorted_tasks:
+            if task.duration_minutes <= remaining:
+                schedule.tasks.append(task)
+                schedule.total_duration += task.duration_minutes
+                remaining -= task.duration_minutes
+            else:
+                schedule.unscheduled.append(task)
+
+        return schedule
 
     def explain_plan(self, schedule: Schedule) -> str:
         """Return an explanation of the generated plan.
@@ -162,4 +183,23 @@ class Scheduler:
         str
             Explanation of why each task was scheduled or skipped.
         """
-        pass
+        lines = [
+            f"Daily plan for {self.owner.name} "
+            f"({self.owner.available_minutes} minutes available):\n"
+        ]
+
+        for task in schedule.tasks:
+            lines.append(
+                f"  [scheduled]  {task.title} "
+                f"({task.duration_minutes} min, {task.priority} priority)"
+            )
+
+        for task in schedule.unscheduled:
+            lines.append(
+                f"  [skipped]    {task.title} "
+                f"({task.duration_minutes} min, {task.priority} priority) "
+                f"— did not fit within the time budget"
+            )
+
+        lines.append(f"\nTotal scheduled time: {schedule.total_duration} minutes.")
+        return "\n".join(lines)

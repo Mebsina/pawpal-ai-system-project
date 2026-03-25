@@ -341,22 +341,23 @@ class Scheduler:
             Explanation of why each task was scheduled or skipped.
         """
         lines = [
-            f"Daily plan for {self.owner.name} "
-            f"({self.owner.available_minutes} minutes available):\n"
+            f"Daily Plan for {self.owner.name}",
+            f"Available time: {self.owner.available_minutes} min\n",
         ]
 
-        for task in schedule.tasks:
-            lines.append(
-                f"  [scheduled]  {task.title} "
-                f"({task.duration_minutes} min, {task.priority} priority)"
-            )
+        if schedule.tasks:
+            lines.append("Schedule:")
+            for i, task in enumerate(schedule.tasks, start=1):
+                lines.append(
+                    f"  {i}. {task.priority.capitalize()}: {task.title} for {task.duration_minutes} min"
+                )
 
-        for task in schedule.unscheduled:
-            lines.append(
-                f"  [skipped]    {task.title} "
-                f"({task.duration_minutes} min, {task.priority} priority) "
-                f"— did not fit within the time budget"
-            )
+        if schedule.unscheduled:
+            lines.append("\nNot Scheduled:")
+            for task in schedule.unscheduled:
+                lines.append(
+                    f"  - {task.title} ({task.duration_minutes} min)"
+                )
 
-        lines.append(f"\nTotal scheduled time: {schedule.total_duration} minutes.")
+        lines.append(f"\nTotal scheduled time: {schedule.total_duration} min")
         return "\n".join(lines)

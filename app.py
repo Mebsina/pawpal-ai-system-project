@@ -12,6 +12,9 @@ st.title("🐾 PawPal+")
 if "owner" not in st.session_state:
     st.session_state.owner = Owner(name="", available_minutes=60, pets=[])
 
+if "owner_editing" not in st.session_state:
+    st.session_state.owner_editing = False
+
 if "active_pet_index" not in st.session_state:
     st.session_state.active_pet_index = 0
 
@@ -19,13 +22,25 @@ owner = st.session_state.owner
 
 # --- Owner Info ---
 st.subheader("Owner Info")
-col1, col2 = st.columns(2)
+owner_locked = bool(owner.name) and not st.session_state.owner_editing
+col1, col2, col3 = st.columns([3, 3, 1])
 with col1:
-    owner.name = st.text_input("Owner name", value=owner.name)
+    owner.name = st.text_input("Owner name", value=owner.name, disabled=owner_locked)
 with col2:
     owner.available_minutes = st.number_input(
-        "Available minutes per day", min_value=1, max_value=480, value=owner.available_minutes
+        "Available minutes per day", min_value=1, max_value=480, value=owner.available_minutes,
+        disabled=owner_locked
     )
+with col3:
+    st.write("")  # vertical alignment spacer
+    if owner_locked:
+        if st.button("Edit"):
+            st.session_state.owner_editing = True
+            st.rerun()
+    elif owner.name:
+        if st.button("Save"):
+            st.session_state.owner_editing = False
+            st.rerun()
 
 st.divider()
 
@@ -107,7 +122,8 @@ else:
         st.write(f"Tasks for {active_pet.name}:")
         st.table([
             {
-                "Title": t.title,
+                "Pet": active_pet.name,
+                "Task Title": t.title,
                 "Time": t.scheduled_time,
                 "Duration (min)": t.duration_minutes,
                 "Priority": t.priority,
@@ -150,21 +166,25 @@ if st.button("Current Plan"):
         else:
             schedule = scheduler.generate_plan(tasks=filtered)
 
+            # Build a task-id -> pet name lookup for display
+            task_pet = {id(t): pet.name for pet in owner.pets for t in pet.tasks}
+
+            def task_row(t):
+                return {
+                    "Pet": task_pet.get(id(t), "-"),
+                    "Task Title": t.title,
+                    "Time": t.scheduled_time,
+                    "Duration (min)": t.duration_minutes,
+                    "Priority": t.priority,
+                }
+
             st.success(f"Scheduled {len(schedule.tasks)} task(s), {schedule.total_duration} minutes total.")
 
             if schedule.tasks:
                 st.markdown("**Scheduled tasks:**")
-                st.table([
-                    {"title": t.title, "duration_minutes": t.duration_minutes, "priority": t.priority}
-                    for t in schedule.tasks
-                ])
+                st.table([task_row(t) for t in schedule.tasks])
 
             if schedule.unscheduled:
                 st.markdown("**Could not fit:**")
-                st.table([
-                    {"title": t.title, "duration_minutes": t.duration_minutes, "priority": t.priority}
-                    for t in schedule.unscheduled
-                ])
+                st.table([task_row(t) for t in schedule.unscheduled])
 
-            st.markdown("**Explanation:**")
-            st.text(scheduler.explain_plan(schedule))

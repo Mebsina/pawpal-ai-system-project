@@ -52,6 +52,7 @@ class Task:
     frequency: str
     completion_status: bool = False
     notes: str = ""
+    scheduled_time: str = "00:00"  # "HH:MM" format, e.g. "08:30"
 
     def mark_complete(self) -> None:
         """Mark this task as completed."""
@@ -176,6 +177,23 @@ class Scheduler:
                 schedule.unscheduled.append(task)
 
         return schedule
+
+    def sort_by_time(self, tasks: list[Task]) -> list[Task]:
+        """Return tasks sorted chronologically by scheduled_time.
+
+        Parameters
+        ----------
+        tasks:
+            List of Task objects to sort.
+
+        Returns
+        -------
+        list[Task]
+            New list sorted by scheduled_time in ascending order.
+            "HH:MM" strings sort correctly with a plain lexicographic key
+            because hours and minutes are zero-padded.
+        """
+        return sorted(tasks, key=lambda t: t.scheduled_time)
 
     def explain_plan(self, schedule: Schedule) -> str:
         """Return an explanation of the generated plan.

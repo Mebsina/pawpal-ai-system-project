@@ -1,4 +1,5 @@
 import streamlit as st
+from datetime import time as dtime
 from pawpal_system import Owner, Pet, Task, Scheduler
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
@@ -74,11 +75,14 @@ else:
     with col3:
         priority = st.selectbox("Priority", ["low", "medium", "high"], index=2)
 
-    col4, col5 = st.columns(2)
+    col4, col5, col6 = st.columns(3)
     with col4:
         category = st.text_input("Category", value="walk")
     with col5:
         frequency = st.selectbox("Frequency", ["daily", "weekly", "once"])
+    with col6:
+        # Increment time input by 15-minute steps (900 seconds) to make it easier to select common times.
+        scheduled_time = st.time_input("Scheduled Time", value=dtime(0, 0), step=900).strftime("%H:%M")
 
     if st.button("Scheduling a Task"):
         active_pet.add_task(Task(
@@ -87,6 +91,7 @@ else:
             priority=priority,
             category=category,
             frequency=frequency,
+            scheduled_time=scheduled_time,
         ))
 
     if active_pet.tasks:
@@ -94,6 +99,7 @@ else:
         st.table([
             {
                 "Title": t.title,
+                "Time": t.scheduled_time,
                 "Duration (min)": t.duration_minutes,
                 "Priority": t.priority,
                 "Category": t.category,

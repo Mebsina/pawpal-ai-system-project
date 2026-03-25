@@ -5,6 +5,7 @@ Full implementation of backend logics for the PawPal pet care scheduling system.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date, timedelta
 
 # ---------------------------------------------------------------------------
 # Module-level constants
@@ -53,6 +54,7 @@ class Task:
     completion_status: bool = False
     notes: str = ""
     scheduled_time: str = "00:00"  # "HH:MM" format, e.g. "08:30"
+    due_date: str = field(default_factory=lambda: date.today().isoformat())  # "YYYY-MM-DD"
 
     def mark_complete(self) -> None:
         """Mark this task as completed."""
@@ -183,6 +185,52 @@ class Scheduler:
                 schedule.unscheduled.append(task)
 
         return schedule
+
+    def reschedule_if_recurring(self, task: Task, pet: Pet) -> Task | None:
+        """Mark a task complete and create the next occurrence if it recurs.
+
+        Uses timedelta to calculate the next due date:
+          - "daily"  -> due_date + 1 day
+          - "weekly" -> due_date + 7 days
+          - anything else ("once", "as_needed") -> no new task created
+
+        Parameters
+        ----------
+        task:
+            The task being completed. Must already belong to pet.tasks.
+        pet:
+            The pet this task belongs to. The new occurrence is added here.
+
+        Returns
+        -------
+        Task | None
+            The newly created next-occurrence Task, or None if non-recurring.
+        """
+        task.mark_complete()
+
+        RECURRENCE_DELTA: dict[str, timedelta] = {
+            "daily": timedelta(days=1),
+            "weekly": timedelta(weeks=1),
+        }
+
+        delta = RECURRENCE_DELTA.get(task.frequency)
+        if delta is None:
+            return None
+
+        next_due = date.fromisoformat(task.due_date) + delta
+
+        next_task = Task(
+            title=task.title,
+            duration_minutes=task.duration_minutes,
+            priority=task.priority,
+            category=task.category,
+            frequency=task.frequency,
+            notes=task.notes,
+            scheduled_time=task.scheduled_time,
+            due_date=next_due.isoformat(),
+        )
+        pet.add_task(next_task)
+        return next_task
 
     def filter_tasks(
         self,

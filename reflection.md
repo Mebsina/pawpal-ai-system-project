@@ -29,12 +29,18 @@
 **a. Constraints and priorities**
 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
+   - The scheduler considers two constraints: the owner's daily time budget (`available_minutes`) and each task's priority level (low, medium, or high). Tasks are sorted by priority first, then by duration as a tiebreaker when two tasks share the same priority.
+
 - How did you decide which constraints mattered most?
+   - Time is the hard constraint - the scheduler never exceeds `available_minutes`. Priority determines the order tasks are considered, so high-priority tasks are always evaluated before lower-priority ones. This ensures the most important tasks get scheduled first when time is limited.
 
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
+   - The scheduler uses a greedy approach: it processes tasks in priority order and skips any task that does not fit in the remaining time, even if a smaller lower-priority task could still fit. For example, if a high-priority 45-minute task cannot fit, the scheduler moves it to unscheduled and continues - it does not go back to try fitting it later after smaller tasks are added.
+
 - Why is that tradeoff reasonable for this scenario?
+   - For a daily pet care routine, simplicity and predictability matter more than perfect optimization. The greedy approach is easy to understand and explain to the user, and the tiebreaker (shortest task first within the same priority) already helps pack more tasks into the schedule.
 
 ---
 

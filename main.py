@@ -81,9 +81,3 @@ if conflicts:
 else:
     print("  No conflicts found.")
 
-# ----- TEST 5: generate plan from incomplete tasks only -----
-print()
-print("=" * 40)
-print("  TEST 5: generate_plan(incomplete tasks)")
-print("=" * 40)
-schedule = scheduler.generate_plan(tasks=incomplete)

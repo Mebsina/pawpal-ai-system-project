@@ -18,6 +18,9 @@ if "owner_editing" not in st.session_state:
 if "active_pet_index" not in st.session_state:
     st.session_state.active_pet_index = 0
 
+if "next_occurrences" not in st.session_state:
+    st.session_state.next_occurrences = {}  # id(task) -> next Task created on complete
+
 owner = st.session_state.owner
 
 # --- Owner Info ---
@@ -155,12 +158,12 @@ else:
             st.success(f"Showing {len(displayed)} task(s). No high-priority items outstanding.")
 
         if displayed:
-            header = st.columns([1, 1, 1, 1, 1, 1, 1, 1, 1.5])
-            for col, label in zip(header, ["Task", "Pet", "Time", "Due Date", "Duration", "Priority", "Category", "Freq", ""]):
+            header = st.columns([1, 1, 1, 1.5, 1.1, 1, 1.1, 1, 1])
+            for col, label in zip(header, ["Task", "Pet", "Time", "Due Date", "Duration", "Priority", "Category", "Freq", "Done"]):
                 col.markdown(f"**{label}**")
             st.divider()
             for pet, t in displayed:
-                row = st.columns([1, 1, 1, 1, 1, 1, 1, 1, 1.5])
+                row = st.columns([1, 1, 1, 1.5, 1.1, 1, 1.1, 1, 1])
                 row[0].write(("~~" + t.title + "~~") if t.completion_status else t.title)
                 row[1].write(pet.name)
                 row[2].write(t.scheduled_time)
@@ -170,14 +173,17 @@ else:
                 row[6].write(t.category)
                 row[7].write(t.frequency)
                 if t.completion_status:
-                    if row[8].button("Uncomplete", type="primary", key=f"uncomplete_{id(t)}", use_container_width=True):
+                    if row[8].button("No", type="primary", key=f"uncomplete_{id(t)}", use_container_width=True):
                         t.completion_status = False
+                        next_task = st.session_state.next_occurrences.pop(id(t), None)
+                        if next_task is not None:
+                            pet.tasks.remove(next_task)
                         st.rerun()
                 else:
-                    if row[8].button("Complete", type="secondary", key=f"complete_{id(t)}", use_container_width=True):
-                        t.mark_complete()
-                        # TODO: Add dated logic here to automatically reschedule recurring tasks for the next day or week if needed.
-                        # Scheduler(owner=owner).reschedule_if_recurring(task=t, pet=pet)
+                    if row[8].button("Yes", type="secondary", key=f"complete_{id(t)}", use_container_width=True):
+                        next_task = Scheduler(owner=owner).reschedule_if_recurring(task=t, pet=pet)
+                        if next_task is not None:
+                            st.session_state.next_occurrences[id(t)] = next_task
                         st.rerun()
         else:
             st.info("No tasks match the selected filter.")
@@ -225,6 +231,7 @@ if st.button("Generate Today Plan"):
                     "Pet": task_pet.get(id(t), "-"),
                     "Task Title": t.title,
                     "Time": t.scheduled_time,
+                    "Due Date": t.due_date,
                     "Duration (min)": t.duration_minutes,
                     "Priority": t.priority.upper(),
                 }

@@ -35,6 +35,7 @@ Your final app should:
 - **Sort and filter**: sort tasks by scheduled time, priority, or duration; filter by priority; high-priority badge shows count of outstanding items
 - **Complete / uncomplete**: toggle completion per task with strikethrough display; completing a daily/weekly task automatically queues the next occurrence; uncompleting removes it
 - **Generate Plan**: filter by pet, then generate a schedule from incomplete tasks only; shows tasks scheduled, minutes used, and minutes remaining; displays Scheduled, Could not fit, and Complete tables
+- **Data persistence**: all owner, pet, and task data is saved to `data/pawpal_data.json` automatically on every change (add pet, add task, mark complete/incomplete, save owner); data is restored on page refresh or restart so nothing is lost
 
 ## Demo
 
@@ -107,6 +108,41 @@ conflicts = scheduler.detect_time_conflicts()
 ```
 
 In the app, this check runs before a new task is saved. If a conflict is found, the task is rejected with a warning and the owner is prompted to choose a different time.
+
+### Challenge 2: Data Persistence with Agent Mode
+
+All data is saved to `data/pawpal_data.json` and loaded back automatically. The `data/` folder is created on the first save if it does not exist.
+
+Two functions in `pawpal_system.py` handle persistence so `app.py` stays UI-only:
+
+- `save_data(owner)`: serializes the `Owner`, its `Pet` list, and each pet's `Task` list to JSON and writes it to disk
+- `load_data()`: reads the file and reconstructs the full object graph; returns an empty `Owner` if the file does not exist yet
+
+```python
+# called once at startup (session state initialization)
+st.session_state.owner = load_data()
+
+# called after every mutation
+save_data(owner)
+```
+
+The JSON structure mirrors the object hierarchy directly:
+
+```json
+{
+  "name": "Alex",
+  "available_minutes": 90,
+  "pets": [
+    {
+      "name": "Mochi",
+      "species": "cat",
+      "tasks": [
+        { "title": "Morning feed", "priority": "high", ... }
+      ]
+    }
+  ]
+}
+```
 
 ---
 

@@ -144,6 +144,24 @@ The JSON structure mirrors the object hierarchy directly:
 }
 ```
 
+### Challenge 3: Advanced Priority Scheduling and UI
+
+Tasks are sorted by priority first, then by time or duration depending on the selected sort option. Priority is color-coded in the task table with emojis:
+
+| Emoji | Priority |
+|-------|----------|
+| 🔴 | High |
+| 🟡 | Medium |
+| 🟢 | Low |
+
+**Scheduler behavior**: `generate_plan()` sorts tasks by priority descending (using `PRIORITY_ORDER`) before fitting them into the time budget. High-priority tasks are always evaluated first, so they are never bumped by lower-priority ones when time is tight.
+
+**UI behavior**:
+- Sort dropdown includes "Priority (high first)" option in the Task Manager
+- A warning badge shows the count of outstanding high-priority tasks in view
+- The priority column displays only the emoji (🔴 / 🟡 / 🟢)
+- `filter_tasks()` in `Scheduler` supports filtering by `status` so Generate Plan can separate incomplete vs. complete tasks before scheduling
+
 ---
 
 ### Suggested workflow

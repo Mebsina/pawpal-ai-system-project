@@ -175,7 +175,8 @@ else:
                 row[2].write(t.scheduled_time)
                 row[3].write(t.due_date)
                 row[4].write(t.duration_minutes)
-                row[5].write(t.priority.upper())
+                priority_emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}
+                row[5].write(priority_emoji.get(t.priority, t.priority))
                 row[6].write(t.category)
                 row[7].write(t.frequency)
                 if t.completion_status:

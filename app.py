@@ -155,25 +155,26 @@ else:
             st.success(f"Showing {len(displayed)} task(s). No high-priority items outstanding.")
 
         if displayed:
-            header = st.columns([1, 1, 1, 1, 1, 1, 1, 1.5])
-            for col, label in zip(header, ["Task", "Pet", "Time", "Duration", "Priority", "Category", "Freq", ""]):
+            header = st.columns([1, 1, 1, 1, 1, 1, 1, 1, 1.5])
+            for col, label in zip(header, ["Task", "Pet", "Time", "Due Date", "Duration", "Priority", "Category", "Freq", ""]):
                 col.markdown(f"**{label}**")
             st.divider()
             for pet, t in displayed:
-                row = st.columns([1, 1, 1, 1, 1, 1, 1, 1.5])
+                row = st.columns([1, 1, 1, 1, 1, 1, 1, 1, 1.5])
                 row[0].write(("~~" + t.title + "~~") if t.completion_status else t.title)
                 row[1].write(pet.name)
                 row[2].write(t.scheduled_time)
-                row[3].write(t.duration_minutes)
-                row[4].write(t.priority.upper())
-                row[5].write(t.category)
-                row[6].write(t.frequency)
+                row[3].write(t.due_date)
+                row[4].write(t.duration_minutes)
+                row[5].write(t.priority.upper())
+                row[6].write(t.category)
+                row[7].write(t.frequency)
                 if t.completion_status:
-                    if row[7].button("Uncomplete", type="primary", key=f"uncomplete_{id(t)}", use_container_width=True):
+                    if row[8].button("Uncomplete", type="primary", key=f"uncomplete_{id(t)}", use_container_width=True):
                         t.completion_status = False
                         st.rerun()
                 else:
-                    if row[7].button("Complete", type="secondary", key=f"complete_{id(t)}", use_container_width=True):
+                    if row[8].button("Complete", type="secondary", key=f"complete_{id(t)}", use_container_width=True):
                         t.mark_complete()
                         # TODO: Add dated logic here to automatically reschedule recurring tasks for the next day or week if needed.
                         # Scheduler(owner=owner).reschedule_if_recurring(task=t, pet=pet)
@@ -207,7 +208,7 @@ if st.button("Generate Today Plan"):
     else:
         scheduler = Scheduler(owner=owner)
         pet_name_filter = None if selected_pet_filter == "All Pets" else selected_pet_filter
-        all_filtered = scheduler.filter_tasks(pet_name=pet_name_filter, status=None)
+        all_filtered = scheduler.filter_tasks(pet_name=pet_name_filter, status=selected_status_filter)
         incomplete = [t for t in all_filtered if not t.completion_status]
         completed = [t for t in all_filtered if t.completion_status]
 

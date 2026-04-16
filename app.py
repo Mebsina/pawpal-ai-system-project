@@ -298,10 +298,10 @@ if st.button("Generate Today Plan"):
 # AI Chat Hub Integration (Floating Action Button)
 # ---------------------------------------------------------------------------
 
-@st.dialog("🐾 PawPal AI Assistant")
+@st.dialog("🐾 PawPal AI Assistant", width="small")
 def ai_chat_dialog():
-    # Structural isolation container to guarantee messages always appear ABOVE the input bar
-    msg_container = st.container()
+    # Structural isolation container enforcing an internal scrollbar algorithm without breaking screen bounds
+    msg_container = st.container(height=550)
     
     with msg_container:
         for msg in st.session_state.chat_history:

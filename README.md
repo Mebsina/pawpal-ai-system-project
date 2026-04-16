@@ -1,207 +1,126 @@
 # PawPal+ (Module 2 Project)
 
-You are building **PawPal+**, a Streamlit app that helps a pet owner plan care tasks for their pet.
-
-## Scenario
-
-A busy pet owner needs help staying consistent with pet care. They want an assistant that can:
-
-- Track pet care tasks (walks, feeding, meds, enrichment, grooming, etc.)
-- Consider constraints (time available, priority, owner preferences)
-- Produce a daily plan and explain why it chose that plan
-
-Your job is to design the system first (UML), then implement the logic in Python, then connect it to the Streamlit UI.
-
-## What you will build
-
-Your final app should:
-
-- Let a user enter basic owner + pet info
-- Let a user add/edit tasks (duration + priority at minimum)
-- Generate a daily schedule/plan based on constraints and priorities
-- Display the plan clearly (and ideally explain the reasoning)
-- Include tests for the most important scheduling behaviors
-
-## UML Diagram
-
-![PawPal+ UML Class Diagram](uml_final.png)
+PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It replaces decentralized UI forms with a **Unified Conversational Hub**, allowing pet owners to manage tasks across multiple pets using native natural language. It harnesses Dynamic Intent Routing and JSON sanitization for resilient actions. The AI layer runs entirely on a local Ollama model, such as `llama3.2:3b`, with no API key required.
 
 ## Features
 
 - **Owner setup**: enter your name and daily time budget; fields lock after saving with an Edit button to unlock
 - **Multi-pet support**: add any number of pets (name, species, age, and optional special needs); switch between pets to manage their tasks; each pet's special needs are summarized below the task table
-- **Task manager**: add tasks with title, duration, priority, category, frequency, and scheduled time; tasks are only saved if no time conflict exists
-- **Conflict detection**: warns before saving a task if another task is already scheduled at the same time slot across any pet
+- **Task manager**: add tasks with title, duration, priority, category, frequency, and scheduled time (15-minute step picker); tasks are only saved if no time conflict exists
+- **Conflict detection**: warns before saving if another task is already scheduled at the same time slot across any pet
 - **Sort and filter**: sort tasks by scheduled time, priority, or duration; filter by priority; high-priority badge shows count of outstanding items
-- **Complete / uncomplete**: toggle completion per task with strikethrough display; completing a daily/weekly task automatically queues the next occurrence; uncompleting removes it
-- **Generate Plan**: filter by pet, then generate a schedule from incomplete tasks only; shows tasks scheduled, minutes used, and minutes remaining; displays Scheduled, Could not fit, and Complete tables
-- **Data persistence**: all owner, pet, and task data is saved to `data/pawpal_data.json` automatically on every change (add pet, add task, mark complete/incomplete, save owner); data is restored on page refresh or restart so nothing is lost
+- **Complete / uncomplete**: toggle completion per task with strikethrough display; completing a daily or weekly task automatically queues the next occurrence; uncompleting removes it
+- **Generate Plan**: filter by pet and status, schedule incomplete tasks within the time budget, display Scheduled / Could not fit / Complete tables
+- **Data persistence**: all data saves to `data/pawpal_data.json` automatically on every change; restored on refresh or restart
+
+## AI Features
+- **Unified Conversational Hub**: All actions occur through a primary native chat interface. A global setup menu provides rapid access to commands.
+- **Dynamic Intent Routing**: The `router.py` parses user intent organically (e.g., Add Task vs Check Schedule) and routes it internally without requiring button clicks.
+- **Robust Anti-Guessing Extraction**: Natural language extraction strictly avoids guessing required fields (e.g., time, valid pet names). If data is lacking, the AI proactively returns a conversational counter-prompt instead of throwing errors or guessing.
+- **JSON Output Sanitization**: Integrated regex-based filtering strictly isolates python dictionaries from LLM conversational filler, ensuring resilient physical tooling.
+- **RAG chat assistant**: Ask questions regarding your pet schedule and receive context-aware responses purely sourced from your local JSON data files.
 
 ## Demo
 
 ### 1. Owner & Pet Setup
-![Owner and Pet Setup](1-owner-pet.png)
+![Owner and Pet Setup](assets/screenshots/1-owner-pet.png)
 
 ### 2. Task Manager
-![Task Manager](2-task-manager.png)
+![Task Manager](assets/screenshots/2-task-manager.png)
 
 ### 3. Task List
-![Task List](3-tasks.png)
+![Task List](assets/screenshots/3-tasks.png)
 
 ### 4. Generate Plan
-![Generate Plan](4-schedule.png)
+![Generate Plan](assets/screenshots/4-schedule.png)
 
-## Getting started
+## Architecture Overview
 
-### Setup
+PawPal+ uses a lightweight layered architecture wrapped smoothly around a Unified Conversational UI.
+
+![System Architecture](assets/architecture.png)
+
+| Layer | File(s) | Responsibility |
+|-------|---------|---------------|
+| Configuration | `config.py` | Centralized system instructions and LLM properties (no `.env` needed) |
+| View + Controller | `app.py` | Streamlit asynchronous streaming chat interface |
+| AI Service Layer | `ai/router.py`, `ai/tools.py`, `ai/utils.py` | Intent parsing, tool interactions, and markdown sanitization |
+| Core / Model | `pawpal_system.py` | Data model, scheduler, conflict detection, persistence |
+| Data Layer | `history.py`, `data/pawpal_data.json` | JSON persistence, completion history, analytics |
+
+The AI Service Layer gracefully restricts itself. When Ollama is disconnected, the system manages raw exceptions to prevent severe UI freezes.
+
+### AI Service Layer
+
+![AI Service Layer](assets/ai_layer.png)
+
+### UML Diagram
+
+![PawPal+ UML Class Diagram](assets/uml.png)
+
+## Setup Instructions
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+ollama pull llama3.2:3b
+ollama serve
+streamlit run app.py
 ```
 
-## Smarter Scheduling
+AI features require Ollama to be running. The app works without it but NL task creation, chat, alerts, and smart scheduling will fall back to manual/greedy behavior.
 
-Four logic improvements were added to `pawpal_system.py` to make the scheduler more useful for a real pet owner.
+## Sample Interactions
 
-### Sort tasks by time
+*Fill in after AI features are built. Include at least 2-3 real input/output examples.*
 
-`Scheduler.sort_by_time(tasks)` returns any list of tasks ordered chronologically by their `scheduled_time` field (`"HH:MM"` string). Because times are zero-padded, Python's built-in `sorted()` with a plain string lambda is enough — no datetime parsing needed.
+| Feature | User Input | AI Output |
+|---------|-----------|-----------|
+| NL Task Creation | | |
+| Chat Assistant | | |
+| Predictive Alert | | |
 
-```python
-sorted_tasks = scheduler.sort_by_time(all_tasks)
-```
+## Design Decisions
 
-Each `Task` has a `scheduled_time` field (default `"00:00"`), set in the app via a time picker with 15-minute increments, and a `due_date` field (`"YYYY-MM-DD"`, defaults to today) displayed in both the Task Manager and Generate Plan tables. The Generate Plan section calls `sort_by_time()` directly to order the scheduled table. The Task Manager sorts its tuple list inline since it works with `(pet, task)` pairs rather than plain tasks.
+| Decision | Choice | Pro | Con |
+|----------|--------|-----|-----|
+| LLM provider | Ollama local with `llama3.2:3b` | Highly capable, zero data sprawl, extremely flexible | Slower inference hardware demands |
+| Central Configuration | `config.py` overrides `.env` | Eliminates extra dependencies/keys | Adjusting core configurations touches runtime variables |
+| Missing Data Logic | Conversational AI interception | Prevents guessing or hard error locks | Requires an additional round trip to LLM |
+| JSON Sanitization | Regular Expression Strippers | Highly resilient to varied LLM boilerplate | Complex formatting anomalies may occasionally penetrate |
+| Testing AI components | Mock Router responses | Fast, repeatable, removes Ollama from standard test runner checks | Cannot emulate pure hallucination boundaries |
 
-### Filter tasks by pet
+## Testing Summary
 
-`Scheduler.filter_tasks(pet_name=None, status=None)` returns a flat list of tasks matching the supplied filters:
+*Fill in after running the full test suite.*
 
-```python
-scheduler.filter_tasks(pet_name="Mochi")  # Mochi's tasks only
-scheduler.filter_tasks(pet_name=None)     # all tasks across all pets
-```
+- **Automated tests**: 26 core tests passing (`pytest tests/test_pawpal.py`); X / Y router tests passing (`pytest tests/test_router.py`)
+- **Conversational Missing Data Protocol**: AI successfully intercepts broken variables (like missing time) by delivering natural counter-prompts instead of injecting defaults.
+- **JSON Extraction Guardrails**: Malformed formatting (wrapper boilerplate output) is correctly nullified via `utils.py` regex stripping capabilities.
+- **Human evaluation**: Manually verified chat responses are correctly routed between Chat and Tools without cross-contamination. Output effectively renders inside the UI Stream.
 
-In the app, the Generate Plan section uses `filter_tasks(pet_name=..., status=...)` to scope tasks by pet and status (Incomplete only / Complete only / All tasks). `generate_plan()` is then called on the incomplete subset of those results.
+*Summary: Central architectural tests passing. The system securely routes intentions and halts bad data requests interactively.*
 
-### Recurring task handling
+## Reflection
 
-`Scheduler.reschedule_if_recurring(task, pet)` marks a task complete and, if its `frequency` is `"daily"` or `"weekly"`, creates the next occurrence with the correct due date using Python's `timedelta`:
+### Limitations and biases
 
-```python
-# daily:  next due = today + 1 day
-# weekly: next due = today + 7 days
-next_task = scheduler.reschedule_if_recurring(task, pet)
-```
+- The NL task parser is only as good as the prompt. Unusual phrasing or ambiguous times may produce wrong field values with high confidence scores.
+- The predictive alert system flags patterns statistically. A pet that genuinely needs less grooming in winter may trigger false missed-task alerts.
+- Historical data reflects past owner behavior. If the owner was inconsistent early on, the smart scheduler learns those bad habits.
+- The system has no veterinary knowledge. It cannot determine whether a medication schedule is medically appropriate.
 
-Each `Task` stores a `due_date` field (`"YYYY-MM-DD"`) that defaults to today. One-off tasks (`"once"`) return `None`, no new task is created. The next occurrence is stored in session state so that clicking "No" (uncomplete) can cleanly remove it from the pet's task list.
+### Misuse and prevention
 
-### Conflict detection
+- Primary risk is over-reliance: owners may treat AI health alerts as medical advice rather than pattern notices.
+- Mitigation: every Priority 4 alert includes *"This is a pattern notice, not medical advice. Consult your vet for health concerns."*
 
-`Scheduler.detect_time_conflicts(tasks=None)` checks whether any two tasks share the same `scheduled_time` slot across all pets. It never raises — it returns a list of plain-text warning strings (empty list means no conflicts):
+### What surprised you during testing
 
-```python
-conflicts = scheduler.detect_time_conflicts()
-# ["CONFLICT at 09:00 — Litter box (Luna), Meds (Mochi)"]
-```
+*Fill in with actual observations after testing.*
 
-In the app, this check runs before a new task is saved. If a conflict is found, the task is rejected with a warning and the owner is prompted to choose a different time.
+### Collaboration with AI
 
-### Challenge 2: Data Persistence with Agent Mode
-
-All data is saved to `data/pawpal_data.json` and loaded back automatically. The `data/` folder is created on the first save if it does not exist.
-
-Two functions in `pawpal_system.py` handle persistence so `app.py` stays UI-only:
-
-- `save_data(owner)`: serializes the `Owner`, its `Pet` list, and each pet's `Task` list to JSON and writes it to disk
-- `load_data()`: reads the file and reconstructs the full object graph; returns an empty `Owner` if the file does not exist yet
-
-```python
-# called once at startup (session state initialization)
-st.session_state.owner = load_data()
-
-# called after every mutation
-save_data(owner)
-```
-
-The JSON structure mirrors the object hierarchy directly:
-
-```json
-{
-  "name": "Alex",
-  "available_minutes": 90,
-  "pets": [
-    {
-      "name": "Mochi",
-      "species": "cat",
-      "tasks": [
-        { "title": "Morning feed", "priority": "high", ... }
-      ]
-    }
-  ]
-}
-```
-
-### Challenge 3: Advanced Priority Scheduling and UI
-
-Tasks are sorted by priority first, then by time or duration depending on the selected sort option. Priority is color-coded in the task table with emojis:
-
-| Emoji | Priority |
-|-------|----------|
-| 🔴 | High |
-| 🟡 | Medium |
-| 🟢 | Low |
-
-**Scheduler behavior**: `generate_plan()` sorts tasks by priority descending (using `PRIORITY_ORDER`) before fitting them into the time budget. High-priority tasks are always evaluated first, so they are never bumped by lower-priority ones when time is tight.
-
-**UI behavior**:
-- Sort dropdown includes "Priority (high first)" option in the Task Manager
-- A warning badge shows the count of outstanding high-priority tasks in view
-- The priority column displays only the emoji (🔴 / 🟡 / 🟢)
-- `filter_tasks()` in `Scheduler` supports filtering by `status` so Generate Plan can separate incomplete vs. complete tasks before scheduling
-
-### Challenge 4: Professional UI and Output Formatting
-
-Visual improvements are applied consistently across the Task Manager and Generate Plan sections.
-
-**Species emoji in pet selector:**
-
-| Emoji | Species |
-|-------|---------|
-| 🐶 | Dog |
-| 🐱 | Cat |
-| 🐾 | Other |
-
-**Category emoji in task table** — common categories are automatically decorated:
-
-| Emoji | Category |
-|-------|----------|
-| 🦮 | walk |
-| 🍽️ | feeding / feed |
-| 💊 | meds / medication |
-| ✂️ | grooming / groom |
-| 🎾 | enrichment |
-| 🎮 | play |
-| 🎓 | training |
-| 🏥 | vet |
-| 🛁 | bath |
-
-Categories not in the list display without an emoji. All lookups are case-insensitive.
-
-**Priority emoji** is applied in both the Task Manager table and the Generate Plan output tables, replacing the plain text label everywhere.
-
-All emoji mappings are defined once at the top of `app.py` (`PRIORITY_EMOJI`, `CATEGORY_EMOJI`, `SPECIES_EMOJI`) and reused across the UI.
-
----
-
-### Suggested workflow
-
-1. Read the scenario carefully and identify requirements and edge cases.
-2. Draft a UML diagram (classes, attributes, methods, relationships).
-3. Convert UML into Python class stubs (no logic yet).
-4. Implement scheduling logic in small increments.
-5. Add tests to verify key behaviors.
-6. Connect your logic to the Streamlit UI in `app.py`.
-7. Refine UML so it matches what you actually built.
+- **Helpful suggestion**: one instance where the AI's suggestion meaningfully improved your design
+- **Flawed suggestion**: one instance where the AI's suggestion was wrong, overkill, or broke something, and what you did instead

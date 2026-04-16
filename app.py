@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import time as dtime
 from pawpal_system import Pet, Task, Scheduler, save_data, load_data
+from ai.router import classify_and_route
 
 PRIORITY_EMOJI = {"high": "🔴", "medium": "🟡", "low": "🟢"}
 CATEGORY_EMOJI = {
@@ -37,6 +38,9 @@ if "active_pet_index" not in st.session_state:
 
 if "next_occurrences" not in st.session_state:
     st.session_state.next_occurrences = {}  # id(task) -> next Task created on complete
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = [{"role": "assistant", "content": "Hi! How can I help you and your pets today?"}]
 
 owner = st.session_state.owner
 
@@ -289,4 +293,72 @@ if st.button("Generate Today Plan"):
             if completed:
                 st.markdown("**Complete:**")
                 st.table([task_row(t) for t in completed])
+
+# ---------------------------------------------------------------------------
+# AI Chat Hub Integration (Floating Action Button)
+# ---------------------------------------------------------------------------
+
+@st.dialog("🐾 PawPal AI Assistant")
+def ai_chat_dialog():
+    # Structural isolation container to guarantee messages always appear ABOVE the input bar
+    msg_container = st.container()
+    
+    with msg_container:
+        for msg in st.session_state.chat_history:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+                
+    # Interactive Chat Loop
+    if prompt := st.chat_input("Ask PawPal to schedule a walk, check a plan, etc."):
+        # Save user message to state
+        st.session_state.chat_history.append({"role": "user", "content": prompt})
+        
+        # Visually inject newly generated messages DIRECTLY into the upper container (msg_container)
+        with msg_container:
+            with st.chat_message("user"):
+                st.markdown(prompt)
+                
+            # Route to AI and conditionally draw the spinner securely above the input
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking..."):
+                    response_text = classify_and_route(prompt)
+                st.markdown(response_text)
+                
+        # Save assistant message to state
+        st.session_state.chat_history.append({"role": "assistant", "content": response_text})
+        # The dialog natively resets on its own, ensuring the input stays anchored, with no full-app rerun required
+
+
+# Append the button at the document root
+if st.button("💬 Ask AI", type="secondary"):
+    ai_chat_dialog()
+
+# Execute a bulletproof Javascript payload to physically extract the button and pin it
+st.html(
+    """
+    <div style="display:none;">
+    <script>
+    // Search the parent React virtual DOM for our specific Ask AI button
+    const buttons = window.parent.document.querySelectorAll('button');
+    buttons.forEach(b => {
+        if (b.innerText.includes('Ask AI')) {
+            // Apply the floating styles directly to the native element, bypassing CSS limits
+            b.style.position = 'fixed';
+            b.style.bottom = '30px';
+            b.style.right = '30px';
+            b.style.zIndex = '9999';
+            b.style.backgroundColor = '#2e2e2e';
+            b.style.color = 'white';
+            b.style.border = '2px solid white';
+            b.style.borderRadius = '30px';
+            b.style.height = '60px';
+            b.style.width = '150px';
+            b.style.fontWeight = 'bold';
+            b.style.boxShadow = '0 4px 15px rgba(0,0,0,0.3)';
+        }
+    });
+    </script>
+    </div>
+    """
+)
 

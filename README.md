@@ -1,6 +1,6 @@
 # PawPal+ (Module 2 Project)
 
-PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It replaces decentralized UI forms with a **Unified Conversational Hub**, allowing pet owners to manage tasks across multiple pets using native natural language. It harnesses Dynamic Intent Routing and JSON sanitization for resilient actions. The AI layer runs entirely on a local Ollama model, such as `llama3.2:3b`, with no API key required.
+PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It features a powerful **Hybrid UI**, maintaining standard dashboard controls while introducing a **Floating Conversational Hub**. This allows pet owners to manage tasks across multiple pets using native natural language at their convenience. It harnesses Dynamic Intent Routing and JSON sanitization for resilient actions. The AI layer runs entirely on a local Ollama model, such as `llama3.2:3b`, with no API key required.
 
 ## Features
 
@@ -14,7 +14,7 @@ PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It 
 - **Data persistence**: all data saves to `data/pawpal_data.json` automatically on every change; restored on refresh or restart
 
 ## AI Features
-- **Unified Conversational Hub**: All actions occur through a primary native chat interface. A global setup menu provides rapid access to commands.
+- **Floating Conversational Hub**: Access the Llama AI instantly through a persistent bottom-right action button without losing visibility of your manual dashboard.
 - **Dynamic Intent Routing**: The `router.py` parses user intent organically (e.g., Add Task vs Check Schedule) and routes it internally without requiring button clicks.
 - **Robust Anti-Guessing Extraction**: Natural language extraction strictly avoids guessing required fields (e.g., time, valid pet names). If data is lacking, the AI proactively returns a conversational counter-prompt instead of throwing errors or guessing.
 - **JSON Output Sanitization**: Integrated regex-based filtering strictly isolates python dictionaries from LLM conversational filler, ensuring resilient physical tooling.

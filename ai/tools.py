@@ -30,48 +30,49 @@ def add_task_tool(user_input: str, chat_history: list = None):
         pet_context += " Since there is only one pet, default to this pet if none is explicitly mentioned."
         
     current_time = datetime.now().strftime("%H:%M")
+    current_date = datetime.now().strftime("%Y-%m-%d")
         
     system_prompt = f"""You are a data extraction module for a pet care scheduling system.
-The current time is {current_time}. You MUST functionally resolve relative times (e.g., "in 5 minutes") into absolute HH:MM format using this current time reference.
+The current time is {current_time} on {current_date}. You MUST functionally resolve relative times (e.g., "in 5 minutes") and dates (e.g., "tmr" = tomorrow) into absolute mathematical formats.
 Extract the task details from the provided input string.
 {pet_context}
 
 CRITICAL RULES:
 1. Do NEVER invent, assume, or hallucinate ANY values.
-2. If the user does not explicitly name the task/activity, you MUST set "title" to null.
-3. If the user does not explicitly specify a time, you MUST set "scheduled_time" to null. (Do NOT default to a random time)
-4. If a variable is completely missing from the user prompt, explicitly return it as null.
-5. ABSOLUTELY NO CONVERSATIONAL TEXT. You must return ONLY raw valid JSON starting with {{ and ending with }}.
+2. If the user does not explicitly specify a time, you MUST set "scheduled_time" to null. (Do NOT default predictably).
+3. If a variable is completely missing from the user prompt, explicitly return it as null.
+4. ABSOLUTELY NO CONVERSATIONAL TEXT. You must return ONLY raw valid JSON starting with {{ and ending with }}.
 
 Return strictly a JSON dictionary featuring the following format:
-- "title": (string or null) The exact task activity declared by the user.
-- "pet_name": (string or null) The exact intended pet. If not explicitly specified in the current request, you MUST return null. Do NOT assume historical pets.
+- "title": (string or null) The exact task activity declared by the user (e.g., "play", "feeding", "walk").
+- "pet_name": (string or null) The intended pet. You must deduce this from recent chat history if the user already selected one. If completely unmentioned, return null.
 - "duration_minutes": (integer or null)
 - "priority": (string or null) 
 - "category": (string or null) 
 - "frequency": (string or null) 
 - "scheduled_time": (string or null) "HH:MM" format (24-hour).
+- "due_date": (string or null) "YYYY-MM-DD" format.
 
 EXAMPLE W/ VAGUE INPUT:
 Input: "Schedule a task for my pet"
-Output: {{"title": null, "pet_name": null, "duration_minutes": null, "priority": null, "category": null, "frequency": null, "scheduled_time": null}}
+Output: {{"title": null, "pet_name": null, "duration_minutes": null, "priority": null, "category": null, "frequency": null, "scheduled_time": null, "due_date": null}}
 """
     
     messages = [{"role": "system", "content": system_prompt}]
     if chat_history:
-        messages.extend(chat_history)
+        messages.extend(chat_history[-8:])  # deeply preserve history for accumulated context state
     else:
         messages.append({"role": "user", "content": user_input})
-        
+    
     try:
         response = ollama.chat(
             model=MODEL_NAME,
             messages=messages,
-            options={"temperature": STRICT_TEMPERATURE}
+            options={"temperature": STRICT_TEMPERATURE, "format": "json"}
         )
     except Exception as e:
-        logger.warning(f"[ai/tools] Ollama endpoint unavailable: {e}")
-        return "The local AI routing engine is currently unresponsive. Please ensure Ollama is actively running."
+        logger.error(f"Local AI failed extraction: {e}")
+        return "I'm having trouble connecting to the local AI. Please try again."
         
     extracted_data = extract_json(response.message.content)
     
@@ -81,16 +82,16 @@ Output: {{"title": null, "pet_name": null, "duration_minutes": null, "priority":
     pet_name = extracted_data.get("pet_name")
     scheduled_time = extracted_data.get("scheduled_time")
     title = extracted_data.get("title")
+    due_date = extracted_data.get("due_date") or current_date
     
-    if not title or title.lower() in ["task", "null"]:
+    if not title or title.lower() in ["task", "null", "none"]:
         title = extracted_data.get("category")
     
     # Single-Pet Automatic Assignment (The Anti-Guessing Single-Pet Exception)
     if len(pet_names) == 1 and not pet_name:
         pet_name = pet_names[0]
         
-    # Conversational Follow-Up Trigger Check dynamically integrated with structured UI payloads
-    if not pet_name:
+    if not pet_name or pet_name not in pet_names:
         return {
             "type": "selection_menu",
             "message": "Which pet is this schedule adjustment intended for?",
@@ -102,29 +103,36 @@ Output: {{"title": null, "pet_name": null, "duration_minutes": null, "priority":
         
     if not scheduled_time:
         tentative_title = title or "task"
-        return f"I can certainly organize that {tentative_title} for {pet_name}. What specific time should the schedule reflect?"
+        day_str = " tomorrow" if due_date != current_date else ""
+        return f"I can certainly organize that {tentative_title} for {pet_name}{day_str}. What specific time should the schedule reflect?"
         
     # Verify exact pet linkage matching
     matching_pet = next((p for p in owner.pets if p.name.lower() == pet_name.lower()), None)
     
     if not matching_pet:
         return f"The profile '{pet_name}' is not currently registered. Valid options are: {', '.join(pet_names)}."
-        
-    # Standard DB Object Generation securely catching explicit null injection
-    new_task = Task(
-        title=extracted_data.get("title") or "Task",
-        duration_minutes=int(extracted_data.get("duration_minutes") or 15),
-        priority=extracted_data.get("priority") or "medium",
-        category=extracted_data.get("category") or "walk",
-        frequency=extracted_data.get("frequency") or "once",
-        scheduled_time=scheduled_time,
-        notes="Generated seamlessly via Conversational UI Hub"
-    )
+
+    # Validation Complete - Execute Task Framework
+    try:
+        # Natively translate structural LLM output securely into our Dataclass
+        task_preview = Task(
+            title=title,
+            duration_minutes=extracted_data.get("duration_minutes") or 15,
+            priority=extracted_data.get("priority") or "medium",
+            category=extracted_data.get("category") or title,
+            scheduled_time=scheduled_time,
+            due_date=due_date,
+            frequency=extracted_data.get("frequency") or "once",
+            notes="Generated seamlessly via Conversational UI Hub"
+        )
+    except Exception as e:
+        logger.error(f"Task object creation failed: {e}")
+        return "There was an error processing the task details. Please try again."
     
     # Return purely an isolated validation dictionary structure to enforce front-end intercept logic
     return {
         "type": "task_confirmation",
-        "message": f"Does this {new_task.title} for {matching_pet.name} at {new_task.scheduled_time} look accurate to schedule?",
-        "task_preview": new_task,
+        "message": f"Does this {task_preview.title} for {matching_pet.name} at {task_preview.scheduled_time} look accurate to schedule?",
+        "task_preview": task_preview,
         "pet_name": matching_pet.name
     }

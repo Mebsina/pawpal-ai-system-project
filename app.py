@@ -331,6 +331,12 @@ def sel_menu_cb(opt):
 def menu_btn_cb(opt):
     st.session_state.user_prompt_override = opt
 
+def render_quick_menu(use_full_width=True):
+    """Abstracts the core quick actions into a reusable DRY rendering container."""
+    st.button("📅 Check Plan", use_container_width=use_full_width, on_click=menu_btn_cb, args=("What's on my plan for today?",))
+    st.button("🦮 Schedule Task", use_container_width=use_full_width, on_click=menu_btn_cb, args=("Schedule a task for my pet",))
+    st.button("❓ User Guide", use_container_width=use_full_width, on_click=menu_btn_cb, args=("What can you help me with?",))
+
 @st.dialog("🐾 PawPal AI Assistant", width="small")
 def ai_chat_dialog():
     # Structural isolation container enforcing an internal scrollbar algorithm without breaking screen bounds
@@ -353,9 +359,7 @@ def ai_chat_dialog():
                 
         # Step 2: Draw the Quick Menu perfectly inline identically ONLY when history empty
         if len(st.session_state.chat_history) == 1 and not user_prompt:
-            st.button("📅 Check Plan", use_container_width=False, on_click=menu_btn_cb, args=("What's on my plan for today?",))
-            st.button("🦮 Schedule Task", use_container_width=False, on_click=menu_btn_cb, args=("Schedule a task for my pet",))
-            st.button("❓ User Guide", use_container_width=False, on_click=menu_btn_cb, args=("What can you help me with?",))
+            render_quick_menu(use_full_width=True)
                 
         # Step 3: Run the Engine organically at visual generation frame
         if user_prompt:
@@ -367,7 +371,7 @@ def ai_chat_dialog():
                 with st.spinner("Responding..."):
                     raw_response = classify_and_route(user_prompt, st.session_state.chat_history)
                     
-                    if isinstance(raw_response, dict) and raw_response.get("type") in ["task_confirmation", "selection_menu"]:
+                    if isinstance(raw_response, dict) and raw_response.get("type") in ["task_confirmation", "selection_menu", "show_quick_menu"]:
                         st.session_state.pending_action = raw_response
                         response_text = raw_response["message"]
                     else:
@@ -390,7 +394,9 @@ def ai_chat_dialog():
                 
             elif action["type"] == "selection_menu":
                 for opt in action["options"]:
-                    st.button(opt, use_container_width=False, on_click=sel_menu_cb, args=(opt,))
+                    st.button(opt, use_container_width=True, on_click=sel_menu_cb, args=(opt,))
+            elif action["type"] == "show_quick_menu":
+                render_quick_menu(use_full_width=True)
 
 
 # Append the button at the document root

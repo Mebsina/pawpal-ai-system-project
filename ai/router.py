@@ -19,6 +19,7 @@ def classify_and_route(user_input: str, chat_history: list = None):
     system_prompt = """Classify the following user input into strictly ONE of the categories below:
 - ADD_TASK: The user wants to schedule a new care event (e.g. walk, feed).
 - CHECK_SCHEDULE: The user is asking to view or generate their daily plan.
+- HELP_MENU: The user requests help, asks what you can do, or asks for a menu or options.
 - GENERAL_CHAT: The user is saying hello or asking conversational questions.
 
 Return absolutely nothing but the exact category string."""
@@ -46,6 +47,11 @@ Return absolutely nothing but the exact category string."""
         return add_task_tool(user_input, chat_history)
     elif "CHECK_SCHEDULE" in intent:
         return "I am ready to interpret calendar metrics, but the schedule visualization tool is currently finalizing."
+    elif "HELP_MENU" in intent:
+        return {
+            "type": "show_quick_menu",
+            "message": "I'm your PawPal assistant! I can help you manage your pet's schedule, track tasks, and answer pet care questions. Here is my core menu:"
+        }
     else:
         # Fallback to pure conversational routing
         return conversational_bypass(user_input, chat_history)

@@ -7,7 +7,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 DATA_FILE = "data/pawpal_data.json"
 
@@ -95,6 +95,16 @@ class Pet:
 
 
 @dataclass
+class CompletionRecord:
+    """Represents a fixed historical record of a task physically completed."""
+    task_id: int
+    pet_name: str
+    task_title: str
+    category: str
+    timestamp: str  # ISO Format string of the exact execution point
+
+
+@dataclass
 class Owner:
     """Represents the pet owner and their daily time budget.
 
@@ -114,6 +124,7 @@ class Owner:
     available_minutes: int
     preferences: dict = field(default_factory=dict)
     pets: list[Pet] = field(default_factory=list)
+    history: list[CompletionRecord] = field(default_factory=list)
 
     def add_pet(self, pet: Pet) -> None:
         """Add a pet to this owner's list."""
@@ -137,6 +148,27 @@ class Schedule:
     tasks: list[Task] = field(default_factory=list)
     total_duration: int = 0
     unscheduled: list[Task] = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Analytics Engine
+# ---------------------------------------------------------------------------
+
+class AnalyticsEngine:
+    """Computes operational logic mapping longitudinal insights directly over legacy historical constraints."""
+    def __init__(self, owner: Owner):
+        self.owner = owner
+        
+    def get_recent_history(self, days: int = 7) -> list[CompletionRecord]:
+        cutoff = datetime.now() - timedelta(days=days)
+        recent = []
+        for r in self.owner.history:
+            try:
+                if datetime.fromisoformat(r.timestamp) >= cutoff:
+                    recent.append(r)
+            except ValueError:
+                pass
+        return recent
 
 
 # ---------------------------------------------------------------------------
@@ -352,6 +384,16 @@ def save_data(owner: Owner) -> None:
         "name": owner.name,
         "available_minutes": owner.available_minutes,
         "preferences": owner.preferences,
+        "history": [
+            {
+                "task_id": r.task_id,
+                "pet_name": r.pet_name,
+                "task_title": r.task_title,
+                "category": r.category,
+                "timestamp": r.timestamp
+            }
+            for r in owner.history
+        ],
         "pets": [
             {
                 "name": pet.name,
@@ -397,9 +439,12 @@ def load_data() -> Owner:
             tasks=tasks,
         )
         pets.append(pet)
+        
+    history = [CompletionRecord(**r) for r in data.get("history", [])]
     return Owner(
         name=data.get("name", ""),
         available_minutes=data.get("available_minutes", 60),
         preferences=data.get("preferences", {}),
         pets=pets,
+        history=history,
     )

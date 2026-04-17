@@ -1,3 +1,4 @@
 streamlit>=1.30
 pytest>=7.0
 pytest-cov>=8.0.0
+ollama>=0.1.0

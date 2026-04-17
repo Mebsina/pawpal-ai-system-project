@@ -234,7 +234,7 @@ else:
                             pet_name=pet.name,
                             task_title=t.title,
                             category=t.category,
-                            timestamp=datetime.now().isoformat()
+                            timestamp=f"{t.due_date}T{t.scheduled_time}"
                         )
                         owner.history.append(record)
 

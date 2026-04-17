@@ -46,6 +46,9 @@ if "chat_history" not in st.session_state:
 if "pending_action" not in st.session_state:
     st.session_state.pending_action = None
 
+if "active_intent" not in st.session_state:
+    st.session_state.active_intent = None
+
 owner = st.session_state.owner
 
 # --- Owner Info ---
@@ -159,6 +162,8 @@ else:
             t.duration_minutes = t.duration_minutes or 15
             t.category = t.category or "walk"
             t.title = t.title or "Task"
+            if len(t.scheduled_time) > 5:
+                t.scheduled_time = t.scheduled_time[-5:]
 
     # All tasks across every pet, with a reference to which pet owns each one
     all_tasks_with_pet = [(pet, t) for pet in owner.pets for t in pet.tasks]
@@ -318,6 +323,7 @@ def confirm_task_cb(owner_ref, pt):
         pet.add_task(task_preview)
         save_data(owner_ref)
     st.session_state.pending_action = {"type": "show_quick_menu"}
+    st.session_state.active_intent = None
     st.session_state.chat_history.append({
         "role": "assistant", 
         "content": f"Task confirmed! I have scheduled **{task_preview.title}** for **{pet.name}** at {task_preview.scheduled_time} on {task_preview.due_date}. It will take {task_preview.duration_minutes} minutes, recurring '{task_preview.frequency}', with {task_preview.priority} priority.\n\nIs there anything else you would like to do?"
@@ -325,14 +331,17 @@ def confirm_task_cb(owner_ref, pt):
 
 def cancel_task_cb():
     st.session_state.pending_action = {"type": "show_quick_menu"}
+    st.session_state.active_intent = None
     st.session_state.chat_history.append({"role": "user", "content": "Nevermind, cancel that task."})
     st.session_state.chat_history.append({"role": "assistant", "content": "No problem! Task scheduling cancelled. What would you like to do instead?"})
 
 def sel_menu_cb(opt):
     st.session_state.pending_action = None
+    st.session_state.active_intent = None
     st.session_state.user_prompt_override = opt
 
 def menu_btn_cb(opt):
+    st.session_state.active_intent = None
     st.session_state.user_prompt_override = opt
 
 def render_quick_menu(use_full_width=True):

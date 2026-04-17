@@ -318,7 +318,10 @@ def confirm_task_cb(owner_ref, pt):
         pet.add_task(task_preview)
         save_data(owner_ref)
     st.session_state.pending_action = {"type": "show_quick_menu"}
-    st.session_state.chat_history.append({"role": "assistant", "content": f"Task confirmed! I have securely locked in '{task_preview.title}'. Is there anything else you would like to do?"})
+    st.session_state.chat_history.append({
+        "role": "assistant", 
+        "content": f"Task confirmed! I have scheduled **{task_preview.title}** for **{pet.name}** at {task_preview.scheduled_time} on {task_preview.due_date}. It will take {task_preview.duration_minutes} minutes, recurring '{task_preview.frequency}', with {task_preview.priority} priority.\n\nIs there anything else you would like to do?"
+    })
 
 def cancel_task_cb():
     st.session_state.pending_action = {"type": "show_quick_menu"}
@@ -387,8 +390,6 @@ def ai_chat_dialog():
             action = st.session_state.pending_action
             if action["type"] == "task_confirmation":
                 pt = action
-                task_preview = pt["task_preview"]
-                st.info(f"**Proposed Schedule:** {task_preview.title} for {pt['pet_name']} at {task_preview.scheduled_time}")
                 
                 confirm_col1, confirm_col2 = st.columns(2)
                 with confirm_col1:

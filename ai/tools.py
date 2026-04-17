@@ -46,7 +46,7 @@ CRITICAL RULES:
 Return strictly a JSON dictionary featuring the following format:
 - "title": (string or null) The exact task activity declared by the user (e.g., "play", "feeding", "walk").
 - "pet_name": (string or null) The intended pet. You must deduce this from recent chat history if the user already selected one. If completely unmentioned, return null.
-- "duration_minutes": (integer or null)
+- "duration_minutes": (integer or null) Strictly the length of the task. Do NOT confuse clock times (e.g., "5 pm") with duration. If length is missing, return null.
 - "priority": (string or null) 
 - "category": (string or null) 
 - "frequency": (string or null) 
@@ -112,6 +112,10 @@ Output: {{"title": null, "pet_name": null, "duration_minutes": null, "priority":
     if not matching_pet:
         return f"The profile '{pet_name}' is not currently registered. Valid options are: {', '.join(pet_names)}."
 
+    # Ensure time extracts natively isolated from calendar metadata
+    if scheduled_time and len(scheduled_time) > 5:
+        scheduled_time = scheduled_time[-5:]
+        
     # Validation Complete - Execute Task Framework
     try:
         # Natively translate structural LLM output securely into our Dataclass
@@ -132,7 +136,7 @@ Output: {{"title": null, "pet_name": null, "duration_minutes": null, "priority":
     # Return purely an isolated validation dictionary structure to enforce front-end intercept logic
     return {
         "type": "task_confirmation",
-        "message": f"Does this {task_preview.title} for {matching_pet.name} at {task_preview.scheduled_time} look accurate to schedule?",
+        "message": f"Please verify this schedule: **{task_preview.title}** for **{matching_pet.name}** at {task_preview.scheduled_time} on {task_preview.due_date}. It will take {task_preview.duration_minutes} minutes, recurring '{task_preview.frequency}', with {task_preview.priority} priority.\n\nDoes this look accurate?",
         "task_preview": task_preview,
         "pet_name": matching_pet.name
     }

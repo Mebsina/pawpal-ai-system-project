@@ -1,6 +1,10 @@
 """Phase 5: Testing and Verification - initial test suite."""
 
-from pawpal_system import Owner, Pet, Task, Scheduler
+from pawpal_system import Owner, Pet, Task, Scheduler, AnalyticsEngine, CompletionRecord, save_data, load_data, DATA_FILE
+import os
+import json
+from datetime import datetime, timedelta
+
 
 
 def test_mark_complete_changes_status():
@@ -315,3 +319,162 @@ def test_detect_conflicts_midnight_slot():
 
     assert len(conflicts) == 1
     assert "00:00" in conflicts[0]
+
+
+# ---------------------------------------------------------------------------
+# Scheduler: generate_plan logic
+# ---------------------------------------------------------------------------
+
+
+def test_generate_plan_respects_budget():
+    """generate_plan() should skip tasks that exceed the available_minutes budget."""
+    owner = Owner(name="Alex", available_minutes=60)
+    pet = Pet(name="Mochi", species="dog", age=3)
+    owner.add_pet(pet)
+
+    # Total minutes = 70 (30 + 10 + 30)
+    pet.add_task(Task(title="Long Walk", duration_minutes=30, priority="high", category="walk", frequency="daily"))
+    pet.add_task(Task(title="Feeding", duration_minutes=10, priority="high", category="feeding", frequency="daily"))
+    pet.add_task(Task(title="Playtime", duration_minutes=30, priority="medium", category="enrichment", frequency="daily"))
+
+    scheduler = Scheduler(owner=owner)
+    plan = scheduler.generate_plan()
+
+    assert len(plan.tasks) == 2  # Long Walk (30) + Feeding (10) = 40. Playtime (30) would exceed 60.
+    assert plan.total_duration == 40
+    assert len(plan.unscheduled) == 1
+    assert plan.unscheduled[0].title == "Playtime"
+
+
+def test_generate_plan_sorts_by_priority():
+    """generate_plan() should prioritize high-priority tasks regardless of submission order."""
+    owner = Owner(name="Alex", available_minutes=60)
+    pet = Pet(name="Mochi", species="dog", age=3)
+    owner.add_pet(pet)
+
+    pet.add_task(Task(title="Low priority", duration_minutes=20, priority="low", category="walk", frequency="daily"))
+    pet.add_task(Task(title="High priority", duration_minutes=20, priority="high", category="walk", frequency="daily"))
+    pet.add_task(Task(title="Medium priority", duration_minutes=20, priority="medium", category="walk", frequency="daily"))
+
+    scheduler = Scheduler(owner=owner)
+    plan = scheduler.generate_plan()
+
+    assert [t.priority for t in plan.tasks] == ["high", "medium", "low"]
+
+
+# ---------------------------------------------------------------------------
+# Scheduler: filter_tasks logic
+# ---------------------------------------------------------------------------
+
+
+def test_filter_tasks_by_pet():
+    """filter_tasks() should only return tasks for the specified pet name."""
+    pet_a = Pet(name="Mochi", species="dog", age=3)
+    pet_b = Pet(name="Luna", species="cat", age=2)
+    owner = Owner(name="Alex", available_minutes=120, pets=[pet_a, pet_b])
+
+    pet_a.add_task(Task(title="A1", duration_minutes=10, priority="high", category="walk", frequency="daily"))
+    pet_b.add_task(Task(title="B1", duration_minutes=10, priority="high", category="walk", frequency="daily"))
+
+    scheduler = Scheduler(owner=owner)
+    filtered = scheduler.filter_tasks(pet_name="Mochi")
+
+    assert len(filtered) == 1
+    assert filtered[0].title == "A1"
+
+
+def test_filter_tasks_by_status():
+    """filter_tasks() should filter by completion_status correctly."""
+    pet = Pet(name="Mochi", species="dog", age=3)
+    owner = Owner(name="Alex", available_minutes=120, pets=[pet])
+
+    t1 = Task(title="Done", duration_minutes=10, priority="high", category="walk", frequency="daily", completion_status=True)
+    t2 = Task(title="Not Done", duration_minutes=10, priority="high", category="walk", frequency="daily", completion_status=False)
+    pet.tasks = [t1, t2]
+
+    scheduler = Scheduler(owner=owner)
+
+    done_tasks = scheduler.filter_tasks(status=True)
+    assert len(done_tasks) == 1
+    assert done_tasks[0].title == "Done"
+
+    pending_tasks = scheduler.filter_tasks(status=False)
+    assert len(pending_tasks) == 1
+    assert pending_tasks[0].title == "Not Done"
+
+
+# ---------------------------------------------------------------------------
+# Analytics Engine
+# ---------------------------------------------------------------------------
+
+
+def test_analytics_get_recent_history():
+    """get_recent_history() should return records within the requested day range."""
+    owner = Owner(name="Alex", available_minutes=60)
+    now = datetime.now()
+    r1 = CompletionRecord(task_id="1", pet_name="M", task_title="T1", category="C", timestamp=(now - timedelta(days=2)).isoformat())
+    r2 = CompletionRecord(task_id="2", pet_name="M", task_title="T2", category="C", timestamp=(now - timedelta(days=10)).isoformat())
+    owner.history = [r1, r2]
+
+    engine = AnalyticsEngine(owner=owner)
+    recent = engine.get_recent_history(days=7)
+
+    assert len(recent) == 1
+    assert recent[0].task_id == "1"
+
+
+def test_analytics_detect_unusual_patterns_overdue():
+    """get_unusual_patterns() should flag tasks whose due_date is in the past."""
+    pet = Pet(name="Mochi", species="dog", age=3)
+    owner = Owner(name="Alex", available_minutes=120, pets=[pet])
+
+    # Task due yesterday
+    yesterday = (datetime.now() - timedelta(days=1)).date().isoformat()
+    pet.add_task(Task(title="Overdue Walk", duration_minutes=30, priority="high", category="walk", frequency="daily", due_date=yesterday))
+
+    engine = AnalyticsEngine(owner=owner)
+    anomalies = engine.get_unusual_patterns()
+
+    assert len(anomalies) == 1
+    assert "missing" in anomalies[0]
+
+
+# ---------------------------------------------------------------------------
+# Data Persistence
+# ---------------------------------------------------------------------------
+
+
+def test_save_load_round_trip():
+    """Saving and loading data should preserve all Owner, Pet, and Task attributes."""
+    test_file = "data/test_pawpal_data.json"
+    
+    # Monkeypatch DATA_FILE in pawpal_system
+    import pawpal_system
+    original_data_file = pawpal_system.DATA_FILE
+    pawpal_system.DATA_FILE = test_file
+
+    try:
+        owner = Owner(name="Alex", available_minutes=45, preferences={"theme": "dark"})
+        pet = Pet(name="Mochi", species="dog", age=3, special_needs=["allergy"])
+        task = Task(title="Meds", duration_minutes=5, priority="high", category="meds", frequency="daily", scheduled_time="08:00")
+        pet.add_task(task)
+        owner.add_pet(pet)
+
+        save_data(owner)
+        loaded_owner = load_data()
+
+        assert loaded_owner.name == "Alex"
+        assert loaded_owner.available_minutes == 45
+        assert loaded_owner.preferences == {"theme": "dark"}
+        assert len(loaded_owner.pets) == 1
+        assert loaded_owner.pets[0].name == "Mochi"
+        assert loaded_owner.pets[0].special_needs == ["allergy"]
+        assert len(loaded_owner.pets[0].tasks) == 1
+        assert loaded_owner.pets[0].tasks[0].title == "Meds"
+        assert loaded_owner.pets[0].tasks[0].scheduled_time == "08:00"
+
+    finally:
+        pawpal_system.DATA_FILE = original_data_file
+        if os.path.exists(test_file):
+            os.remove(test_file)
+

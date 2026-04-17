@@ -95,10 +95,26 @@ AI features require Ollama to be running. The app works without it but NL task c
 
 ## Testing Summary
 
-- **Automated tests**: 26 core tests passing (`pytest tests/test_pawpal.py`).
+### Core System Tests
+- **Automated tests**: 25 core tests passing (`pytest tests/test_pawpal.py`). Validated areas include:
+  - **Scheduler**: `generate_plan`, `detect_time_conflicts`, `reschedule_if_recurring`, `filter_tasks`.
+  - **AnalyticsEngine**: `get_unusual_patterns` (overdue detection), `get_recent_history`.
+  - **Data Integrity**: `Task.mark_complete`, `Pet.add_task`, `Owner.add_pet`.
+  - **Persistence**: `save_data` and `load_data` (JSON round-trip validation).
+
+### AI Component Tests
+- **Status**: Initial utilities implemented; core AI logic testing planned.
+- **Current Coverage**: 3 tests passing (`pytest tests/test_utils.py`) for `extract_json` (LLM response sanitization).
+- **Planned Work**:
+  - **Intent Routing Validation**: Verification of `router.py` classification across varied natural language samples.
+  - **Confirmation Guardrails**: Ensuring data-altering tools cannot execute without explicit terminal confirmation.
+  - **Grounding Verification**: Tests to ensure AI suggestions are strictly based on the available pet database.
+
 - **Proactive Anomaly Detection**: `AnalyticsEngine` successfully identifies missed recurring tasks and triggers conversational alerts.
 - **Batch Plan Execution**: The AI assistant can process multiple pet requirements simultaneously and apply batch updates to the schedule upon user confirmation.
 - **Human evaluation**: Manually verified that "Smart Plan" suggestions respect species guidelines and historical completion patterns.
+
+*Summary: Core system logic is robustly tested. AI testing effort is focused on intent reliability and data safety guardrails.*
 
 *Summary: All AI milestones complete. The system now acts as a proactive agent rather than a reactive scheduler.*
 

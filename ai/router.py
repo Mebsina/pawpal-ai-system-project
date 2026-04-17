@@ -9,7 +9,7 @@ import ollama
 import streamlit as st
 
 from config import MODEL_NAME, STRICT_TEMPERATURE, CHAT_TEMPERATURE
-from ai.tools import add_task_tool
+from ai.tools import add_task_tool, check_schedule_tool
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ Return absolutely nothing but the exact category string."""
         return add_task_tool(user_input, chat_history)
     elif "CHECK_SCHEDULE" in intent:
         st.session_state.active_intent = None
-        return "I am ready to interpret calendar metrics, but the schedule visualization tool is currently finalizing."
+        return check_schedule_tool(user_input, chat_history)
     elif "HELP_MENU" in intent:
         return {
             "type": "show_quick_menu",

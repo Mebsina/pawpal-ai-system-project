@@ -5,6 +5,7 @@ Backend execution functions dynamically triggered by the intent routing engine.
 
 import logging
 import ollama
+from datetime import datetime
 
 from config import MODEL_NAME, STRICT_TEMPERATURE
 from pawpal_system import load_data, save_data, Task
@@ -28,24 +29,32 @@ def add_task_tool(user_input: str, chat_history: list = None):
     if len(pet_names) == 1:
         pet_context += " Since there is only one pet, default to this pet if none is explicitly mentioned."
         
+    current_time = datetime.now().strftime("%H:%M")
+        
     system_prompt = f"""You are a data extraction module for a pet care scheduling system.
+The current time is {current_time}. You MUST functionally resolve relative times (e.g., "in 5 minutes") into absolute HH:MM format using this current time reference.
 Extract the task details from the provided input string.
 {pet_context}
 
 CRITICAL RULES:
 1. Do NEVER invent, assume, or hallucinate ANY values.
-2. If the user does not explicitly name the task/activity, you MUST set "title" to null. (Do NOT default to "Walk" or "Task")
-3. If the user does not explicitly specify a time, you MUST set "scheduled_time" to null. (Do NOT default to a random time like 14:30)
+2. If the user does not explicitly name the task/activity, you MUST set "title" to null.
+3. If the user does not explicitly specify a time, you MUST set "scheduled_time" to null. (Do NOT default to a random time)
 4. If a variable is completely missing from the user prompt, explicitly return it as null.
+5. ABSOLUTELY NO CONVERSATIONAL TEXT. You must return ONLY raw valid JSON starting with {{ and ending with }}.
 
 Return strictly a JSON dictionary featuring the following format:
 - "title": (string or null) The exact task activity declared by the user.
-- "pet_name": (string or null) The exact intended pet.
+- "pet_name": (string or null) The exact intended pet. If not explicitly specified in the current request, you MUST return null. Do NOT assume historical pets.
 - "duration_minutes": (integer or null)
 - "priority": (string or null) 
 - "category": (string or null) 
 - "frequency": (string or null) 
 - "scheduled_time": (string or null) "HH:MM" format (24-hour).
+
+EXAMPLE W/ VAGUE INPUT:
+Input: "Schedule a task for my pet"
+Output: {{"title": null, "pet_name": null, "duration_minutes": null, "priority": null, "category": null, "frequency": null, "scheduled_time": null}}
 """
     
     messages = [{"role": "system", "content": system_prompt}]
@@ -72,6 +81,9 @@ Return strictly a JSON dictionary featuring the following format:
     pet_name = extracted_data.get("pet_name")
     scheduled_time = extracted_data.get("scheduled_time")
     title = extracted_data.get("title")
+    
+    if not title or title.lower() in ["task", "null"]:
+        title = extracted_data.get("category")
     
     # Single-Pet Automatic Assignment (The Anti-Guessing Single-Pet Exception)
     if len(pet_names) == 1 and not pet_name:

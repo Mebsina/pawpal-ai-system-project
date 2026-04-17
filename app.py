@@ -220,6 +220,8 @@ else:
                         if t.created_next_task_id:
                             pet.tasks = [task for task in pet.tasks if task.id != t.created_next_task_id]
                             t.created_next_task_id = None
+                        # Remove historical ledger records for this specific task instance
+                        owner.history = [r for r in owner.history if r.task_id != t.id]
                         save_data(owner)
                         st.rerun()
                 else:

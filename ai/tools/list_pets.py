@@ -1,7 +1,7 @@
 import logging
 import ollama
 from config import MODEL_NAME, CHAT_TEMPERATURE
-from pawpal_system import load_data
+from core import load_data
 
 logger = logging.getLogger(__name__)
 

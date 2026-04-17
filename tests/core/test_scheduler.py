@@ -1,43 +1,5 @@
-"""Phase 5: Testing and Verification - initial test suite."""
-
-from pawpal_system import Owner, Pet, Task, Scheduler, AnalyticsEngine, CompletionRecord, save_data, load_data
-from config import DATA_FILE, PRIORITY_ORDER
-import os
-import json
-from datetime import datetime, timedelta
-
-
-
-def test_mark_complete_changes_status():
-    """Task completion: mark_complete() should set completion_status to True."""
-    task = Task(
-        title="Morning walk",
-        duration_minutes=30,
-        priority="high",
-        category="walk",
-        frequency="daily",
-    )
-    assert task.completion_status is False
-    task.mark_complete()
-    assert task.completion_status is True
-
-
-def test_adding_task_increases_pet_task_count():
-    """Task addition: adding a task to a Pet should increase its task count."""
-    pet = Pet(name="Mochi", species="dog", age=3)
-    assert len(pet.tasks) == 0
-
-    pet.tasks.append(
-        Task(
-            title="Feeding",
-            duration_minutes=10,
-            priority="high",
-            category="feeding",
-            frequency="daily",
-        )
-    )
-    assert len(pet.tasks) == 1
-
+from core import Owner, Pet, Task, Scheduler
+from config import PRIORITY_ORDER
 
 # ---------------------------------------------------------------------------
 # Sorting correctness
@@ -47,7 +9,6 @@ def test_adding_task_increases_pet_task_count():
 # Test: midnight (00:00) sorts before all other times
 # Test: all identical times preserves all tasks
 # ---------------------------------------------------------------------------
-
 
 def test_sort_by_time_returns_chronological_order():
     """sort_by_time() should return tasks ordered earliest to latest."""
@@ -402,80 +363,3 @@ def test_filter_tasks_by_status():
     pending_tasks = scheduler.filter_tasks(status=False)
     assert len(pending_tasks) == 1
     assert pending_tasks[0].title == "Not Done"
-
-
-# ---------------------------------------------------------------------------
-# Analytics Engine
-# ---------------------------------------------------------------------------
-
-
-def test_analytics_get_recent_history():
-    """get_recent_history() should return records within the requested day range."""
-    owner = Owner(name="Alex", available_minutes=60)
-    now = datetime.now()
-    r1 = CompletionRecord(task_id="1", pet_name="M", task_title="T1", category="C", timestamp=(now - timedelta(days=2)).isoformat())
-    r2 = CompletionRecord(task_id="2", pet_name="M", task_title="T2", category="C", timestamp=(now - timedelta(days=10)).isoformat())
-    owner.history = [r1, r2]
-
-    engine = AnalyticsEngine(owner=owner)
-    recent = engine.get_recent_history(days=7)
-
-    assert len(recent) == 1
-    assert recent[0].task_id == "1"
-
-
-def test_analytics_detect_unusual_patterns_overdue():
-    """get_unusual_patterns() should flag tasks whose due_date is in the past."""
-    pet = Pet(name="Mochi", species="dog", age=3)
-    owner = Owner(name="Alex", available_minutes=120, pets=[pet])
-
-    # Task due yesterday
-    yesterday = (datetime.now() - timedelta(days=1)).date().isoformat()
-    pet.add_task(Task(title="Overdue Walk", duration_minutes=30, priority="high", category="walk", frequency="daily", due_date=yesterday))
-
-    engine = AnalyticsEngine(owner=owner)
-    anomalies = engine.get_unusual_patterns()
-
-    assert len(anomalies) == 1
-    assert "missing" in anomalies[0]
-
-
-# ---------------------------------------------------------------------------
-# Data Persistence
-# ---------------------------------------------------------------------------
-
-
-def test_save_load_round_trip():
-    """Saving and loading data should preserve all Owner, Pet, and Task attributes."""
-    test_file = "data/test_pawpal_data.json"
-    
-    # Monkeypatch DATA_FILE in pawpal_system
-    import pawpal_system
-    original_data_file = pawpal_system.DATA_FILE
-    pawpal_system.DATA_FILE = test_file
-
-    try:
-        owner = Owner(name="Alex", available_minutes=45, preferences={"theme": "dark"})
-        pet = Pet(name="Mochi", species="dog", age=3, special_needs=["allergy"])
-        task = Task(title="Meds", duration_minutes=5, priority="high", category="meds", frequency="daily", scheduled_time="08:00")
-        pet.add_task(task)
-        owner.add_pet(pet)
-
-        save_data(owner)
-        loaded_owner = load_data()
-
-        assert loaded_owner.name == "Alex"
-        assert loaded_owner.available_minutes == 45
-        assert loaded_owner.preferences == {"theme": "dark"}
-        assert len(loaded_owner.pets) == 1
-        assert loaded_owner.pets[0].name == "Mochi"
-        assert loaded_owner.pets[0].special_needs == ["allergy"]
-        assert len(loaded_owner.pets[0].tasks) == 1
-        assert loaded_owner.pets[0].tasks[0].title == "Meds"
-        assert loaded_owner.pets[0].tasks[0].scheduled_time == "08:00"
-
-    finally:
-        pawpal_system.DATA_FILE = original_data_file
-        if os.path.exists(test_file):
-            os.remove(test_file)
-

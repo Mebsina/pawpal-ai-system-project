@@ -46,8 +46,8 @@ PawPal+ uses a lightweight layered architecture wrapped smoothly around a Unifie
 | Configuration | `config.py` | Centralized system instructions, pet care guidelines, and LLM properties |
 | View + Controller | `app.py` | Streamlit asynchronous streaming chat interface, batch plan confirmation UI |
 | AI Service Layer | `ai/router.py`, `ai/tools/`, `ai/utils.py` | Intent parsing, zero-temperature grounding, tool interactions, and markdown sanitization |
-| Core / Model | `pawpal_system.py` | Data model, scheduler, AnalyticsEngine (anomaly detection), conflict detection, persistence |
-| Data Layer | `history.py`, `data/pawpal_data.json` | JSON persistence, completion history, analytics |
+| Core / Model | `core/` package (`models`, `scheduler`, `analytics`) | Data model, scheduler logic, and anomaly detection |
+| Data Layer | `core/persistence.py`, `data/pawpal_data.json` | Automated JSON persistence and completion history |
 
 The AI Service Layer gracefully restricts itself. When Ollama is disconnected, the system manages raw exceptions to prevent severe UI freezes.
 
@@ -96,11 +96,15 @@ AI features require Ollama to be running. The app works without it but NL task c
 ## Testing Summary
 
 ### Core System Tests
-- **Automated tests**: 25 core tests passing (`pytest tests/test_pawpal.py`). Validated areas include:
-  - **Scheduler**: `generate_plan`, `detect_time_conflicts`, `reschedule_if_recurring`, `filter_tasks`.
-  - **AnalyticsEngine**: `get_unusual_patterns` (overdue detection), `get_recent_history`.
-  - **Data Integrity**: `Task.mark_complete`, `Pet.add_task`, `Owner.add_pet`.
-  - **Persistence**: `save_data` and `load_data` (JSON round-trip validation).
+- **Automated tests**: 28 tests passing (`pytest tests/`). Validated areas include:
+  - **Core Logic** (`tests/core/`):
+    - **Models**: `Task.mark_complete`, `Pet.add_task`, `Owner.add_pet`.
+    - **Scheduler**: `generate_plan`, `detect_time_conflicts`, `reschedule_if_recurring`, `filter_tasks`.
+    - **AnalyticsEngine**: `get_unusual_patterns`, `get_recent_history`.
+    - **Persistence**: `save_data` and `load_data` (via `core/persistence.py`).
+  - **AI Utilities** (`tests/ai/`):
+    - **Output Sanitization**: JSON extraction from markdown.
+    - **Grounding**: Temperature checks and tool routing helpers.
 
 ### AI Component Tests
 - **Status**: Initial utilities implemented; core AI logic testing planned.

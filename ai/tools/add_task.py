@@ -2,7 +2,7 @@ import logging
 import ollama
 from datetime import datetime
 from config import MODEL_NAME, STRICT_TEMPERATURE
-from pawpal_system import load_data, Task, Scheduler
+from core import Task, save_data, load_data, Scheduler
 from ai.utils import extract_json
 
 logger = logging.getLogger(__name__)

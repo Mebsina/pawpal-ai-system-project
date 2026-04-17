@@ -2,7 +2,7 @@ import logging
 import ollama
 import streamlit as st
 from config import MODEL_NAME
-from pawpal_system import load_data, AnalyticsEngine
+from core import load_data, AnalyticsEngine
 
 logger = logging.getLogger(__name__)
 

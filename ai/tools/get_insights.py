@@ -1,7 +1,7 @@
 import logging
 import ollama
 from config import MODEL_NAME, STRICT_TEMPERATURE
-from pawpal_system import load_data, AnalyticsEngine
+from core import load_data, AnalyticsEngine
 
 logger = logging.getLogger(__name__)
 

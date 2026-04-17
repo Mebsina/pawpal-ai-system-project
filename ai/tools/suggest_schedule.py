@@ -4,7 +4,7 @@ import ollama
 from dataclasses import asdict
 from datetime import datetime
 from config import MODEL_NAME, STRICT_TEMPERATURE, STANDARD_CARE_GUIDELINES
-from pawpal_system import load_data, AnalyticsEngine
+from core import load_data, AnalyticsEngine
 from ai.utils import extract_json
 
 logger = logging.getLogger(__name__)

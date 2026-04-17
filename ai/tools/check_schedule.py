@@ -2,7 +2,7 @@ import logging
 import ollama
 from datetime import date
 from config import MODEL_NAME
-from pawpal_system import load_data, Scheduler
+from core import load_data, Scheduler
 
 logger = logging.getLogger(__name__)
 

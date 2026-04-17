@@ -1,9 +1,11 @@
 import streamlit as st
 from datetime import time as dtime
 from datetime import date as ddate
-from pawpal_system import Pet, Task, Scheduler, save_data, load_data
+from core import Pet, Task, Scheduler, save_data, load_data, CompletionRecord
 from config import PRIORITY_ORDER
 from ai.router import classify_and_route
+from itertools import groupby
+from datetime import datetime
 import streamlit.components.v1 as components
 
 PRIORITY_EMOJI = {"high": "🔴", "medium": "🟡", "low": "🟢"}
@@ -215,7 +217,6 @@ else:
             container_args = {"height": 400} if len(filtered) > 5 else {}
             with st.container(**container_args):
                 # We group by pet to remove the Pet column and improve hierarchy
-                from itertools import groupby
                 # Sort by pet name for groupby
                 filtered.sort(key=lambda pt: pt[0].name)
                 for pet_name, group in groupby(filtered, key=lambda pt: pt[0].name):
@@ -251,8 +252,6 @@ else:
                                 owner.history = [r for r in owner.history if r.task_id != t.id]
                             else:
                                 # Complete logic
-                                from pawpal_system import CompletionRecord
-                                from datetime import datetime
                                 record = CompletionRecord(
                                     task_id=t.id,
                                     pet_name=pt_pet.name,

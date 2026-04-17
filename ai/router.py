@@ -9,7 +9,14 @@ import ollama
 import streamlit as st
 
 from config import MODEL_NAME, STRICT_TEMPERATURE, CHAT_TEMPERATURE
-from ai.tools import add_task_tool, check_schedule_tool, get_insights_tool, predictive_alerts_tool, suggest_schedule_tool, list_pets_tool, add_pet_tool, remove_pet_tool
+from ai.tools.add_task import add_task_tool
+from ai.tools.check_schedule import check_schedule_tool
+from ai.tools.get_insights import get_insights_tool
+from ai.tools.predictive_alerts import predictive_alerts_tool
+from ai.tools.suggest_schedule import suggest_schedule_tool
+from ai.tools.list_pets import list_pets_tool
+from ai.tools.add_pet import add_pet_tool
+from ai.tools.remove_pet import remove_pet_tool
 
 logger = logging.getLogger(__name__)
 

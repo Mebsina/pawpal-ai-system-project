@@ -12,7 +12,7 @@ from ai.tools import add_task_tool
 
 logger = logging.getLogger(__name__)
 
-def classify_and_route(user_input: str):
+def classify_and_route(user_input: str, chat_history: list = None):
     """
     Classifies the unified intention and delegates payload processing to specific modular tools.
     """
@@ -23,13 +23,16 @@ def classify_and_route(user_input: str):
 
 Return absolutely nothing but the exact category string."""
 
+    messages = [{"role": "system", "content": system_prompt}]
+    if chat_history:
+        messages.extend(chat_history)
+    else:
+        messages.append({"role": "user", "content": user_input})
+
     try:
         response = ollama.chat(
             model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_input}
-            ],
+            messages=messages,
             options={"temperature": STRICT_TEMPERATURE}
         )
     except Exception as e:
@@ -40,26 +43,30 @@ Return absolutely nothing but the exact category string."""
     logger.info(f"[ai/router] Interpreted Context Classification: {intent}")
 
     if "ADD_TASK" in intent:
-        return add_task_tool(user_input)
+        return add_task_tool(user_input, chat_history)
     elif "CHECK_SCHEDULE" in intent:
         return "I am ready to interpret calendar metrics, but the schedule visualization tool is currently finalizing."
     else:
         # Fallback to pure conversational routing
-        return conversational_bypass(user_input)
+        return conversational_bypass(user_input, chat_history)
         
 
-def conversational_bypass(user_input: str) -> str:
+def conversational_bypass(user_input: str, chat_history: list = None) -> str:
     """
     Provides standard conversational feedback streams when formal tool commands are not invoked.
     """
     system_prompt = "Act as a helpful pet care assistant. Provide brief conversational responses to general chat inquiries."
+    
+    messages = [{"role": "system", "content": system_prompt}]
+    if chat_history:
+        messages.extend(chat_history)
+    else:
+        messages.append({"role": "user", "content": user_input})
+        
     try:
         response = ollama.chat(
             model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_input}
-            ],
+            messages=messages,
             options={"temperature": CHAT_TEMPERATURE}
         )
         return response.message.content

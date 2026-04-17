@@ -12,7 +12,7 @@ from ai.utils import extract_json
 
 logger = logging.getLogger(__name__)
 
-def add_task_tool(user_input: str):
+def add_task_tool(user_input: str, chat_history: list = None):
     """
     Parses user input to extract required task parameters, enforces the conversational 
     anti-guessing protocol for missing parameters, and packages the physical Draft natively for UI validation.
@@ -32,23 +32,32 @@ def add_task_tool(user_input: str):
 Extract the task details from the provided input string.
 {pet_context}
 
-Return strictly a JSON dictionary featuring the following keys. Do not guess values if omitted; utilize null.
-- "title": (string) Brief task name, e.g. "Walk", "Meds"
-- "pet_name": (string) The intended pet, or null if unspecified.
-- "duration_minutes": (integer) Time duration in minutes. Default 15.
-- "priority": (string) "low", "medium", or "high". Default "medium".
-- "category": (string) "walk", "feeding", "meds", "grooming", "enrichment". Default "walk".
-- "frequency": (string) "once", "daily", "weekly". Default "once".
-- "scheduled_time": (string) "HH:MM" format (24-hour), or null if strictly unspecified.
+CRITICAL RULES:
+1. Do NEVER invent, assume, or hallucinate ANY values.
+2. If the user does not explicitly name the task/activity, you MUST set "title" to null. (Do NOT default to "Walk" or "Task")
+3. If the user does not explicitly specify a time, you MUST set "scheduled_time" to null. (Do NOT default to a random time like 14:30)
+4. If a variable is completely missing from the user prompt, explicitly return it as null.
+
+Return strictly a JSON dictionary featuring the following format:
+- "title": (string or null) The exact task activity declared by the user.
+- "pet_name": (string or null) The exact intended pet.
+- "duration_minutes": (integer or null)
+- "priority": (string or null) 
+- "category": (string or null) 
+- "frequency": (string or null) 
+- "scheduled_time": (string or null) "HH:MM" format (24-hour).
 """
     
+    messages = [{"role": "system", "content": system_prompt}]
+    if chat_history:
+        messages.extend(chat_history)
+    else:
+        messages.append({"role": "user", "content": user_input})
+        
     try:
         response = ollama.chat(
             model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_input}
-            ],
+            messages=messages,
             options={"temperature": STRICT_TEMPERATURE}
         )
     except Exception as e:

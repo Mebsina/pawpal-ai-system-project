@@ -353,7 +353,7 @@ def ai_chat_dialog():
             # Route to AI and conditionally draw the spinner securely above the input
             with st.chat_message("assistant"):
                 with st.spinner("Responding..."):
-                    raw_response = classify_and_route(user_prompt)
+                    raw_response = classify_and_route(user_prompt, st.session_state.chat_history)
                     
                     # Intercept structural dictionaries to block DB committing gracefully
                     if isinstance(raw_response, dict) and raw_response.get("type") == "task_confirmation":

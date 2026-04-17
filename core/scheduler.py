@@ -68,12 +68,10 @@ class Scheduler:
         return schedule
 
     def detect_time_conflicts(self, tasks: list[Task] | None = None) -> list[str]:
-        """Check for tasks that share the same scheduled_time slot.
+        """Check for temporal overlaps between tasks, accounting for durations.
 
-        Compares every task across all pets (or a supplied list) and
-        returns a plain-text warning for each time slot where two or
-        more tasks overlap. Never raises — always returns a list that
-        is empty when there are no conflicts.
+        Compares tasks across all pets (or a supplied list) and returns 
+        plain-text warnings for overlapping intervals.
 
         Parameters
         ----------
@@ -84,36 +82,67 @@ class Scheduler:
         Returns
         -------
         list[str]
-            One warning string per conflicting time slot, e.g.:
-            ["CONFLICT at 09:00 — Litter box (Luna), Feeding (Mochi)"]
-            Empty list means no conflicts were found.
+            One warning string per conflict cluster.
         """
-        slots: dict[str, list[str]] = defaultdict(list)
-
+        # 1. Gather all tasks and map them to pet names
         if tasks is not None:
-            task_to_pet: dict[str, str] = {}
+            all_relevant = tasks
+            task_to_pet = {}
             for pet in self.owner.pets:
                 for t in pet.tasks:
                     task_to_pet[t.id] = pet.name
-            for t in tasks:
-                pet_name = task_to_pet.get(t.id, "Unknown")
-                slots[t.scheduled_time].append(f"{t.title} for {pet_name}")
         else:
-            for pet in self.owner.pets:
-                for t in pet.tasks:
-                    slots[t.scheduled_time].append(f"{t.title} for {pet.name}")
+            all_relevant = [t for pet in self.owner.pets for t in pet.tasks]
+            task_to_pet = {t.id: pet.name for pet in self.owner.pets for t in pet.tasks}
 
+        # 2. Convert to intervals [start, end) in minutes
+        intervals = []
+        for t in all_relevant:
+            start = self._to_minutes(t.scheduled_time)
+            intervals.append({
+                "start": start,
+                "end": start + t.duration_minutes,
+                "entry": f"{t.title} for {task_to_pet.get(t.id, 'Unknown')}",
+                "original_time": t.scheduled_time
+            })
+            
+        # 3. Group overlapping tasks into clusters
+        # Sort by start time to process linearly
+        intervals.sort(key=lambda x: x["start"])
+        
+        clusters: list[list[dict]] = []
+        for interval in intervals:
+            added = False
+            for cluster in clusters:
+                # If this interval overlaps ANY member of the cluster, add it
+                if any(max(interval["start"], m["start"]) < min(interval["end"], m["end"]) for m in cluster):
+                    cluster.append(interval)
+                    added = True
+                    break
+            if not added:
+                clusters.append([interval])
+                
+        # 4. Format clusters with >1 task into warnings
         warnings = []
-        for time_slot, entries in sorted(slots.items()):
-            if len(entries) > 1:
+        for cluster in sorted(clusters, key=lambda c: sorted([m["original_time"] for m in c])[0]):
+            if len(cluster) > 1:
+                # Deterministic sort for entry strings (by title/pet)
+                entries = sorted([m["entry"] for m in cluster])
+                
                 if len(entries) == 2:
                     joined_entries = f"'{entries[0]}' and '{entries[1]}'"
                 else:
                     joined_entries = ", ".join([f"'{e}'" for e in entries[:-1]]) + f", and '{entries[-1]}'"
                 
-                warnings.append(
-                    f"a scheduling overlap exactly at {time_slot} between {joined_entries}"
-                )
+                # Determine earliest time in cluster
+                earliest_time = sorted([m["original_time"] for m in cluster])[0]
+                
+                # Format: Use "exactly at" for exact matches to preserve test compatibility
+                if all(m["original_time"] == earliest_time for m in cluster):
+                    warnings.append(f"a scheduling overlap exactly at {earliest_time} between {joined_entries}")
+                else:
+                    warnings.append(f"a scheduling overlap around {earliest_time} between {joined_entries}")
+
         return warnings
 
     def reschedule_if_recurring(self, task: Task, pet: Pet) -> Task | None:
@@ -137,6 +166,10 @@ class Scheduler:
             The newly created next-occurrence Task, or None if non-recurring.
         """
         task.mark_complete()
+
+        # Skip if this specific instance already spawned its next occurrence
+        if task.created_next_task_id:
+            return None
 
         RECURRENCE_DELTA: dict[str, timedelta] = {
             "daily": timedelta(days=1),
@@ -213,3 +246,12 @@ class Scheduler:
             because hours and minutes are zero-padded.
         """
         return sorted(tasks, key=lambda t: t.scheduled_time)
+
+    def _to_minutes(self, hhmm: str) -> int:
+        """Helper to convert HH:MM string to absolute minutes from midnight."""
+        try:
+            h, m = map(int, hhmm.split(":"))
+            return h * 60 + m
+        except Exception:
+            # Fallback for invalid formats during migration or malformed input
+            return 0

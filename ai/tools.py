@@ -9,8 +9,9 @@ import ollama
 from dataclasses import asdict
 from datetime import datetime, date
 
+import streamlit as st
 from config import MODEL_NAME, STRICT_TEMPERATURE, STANDARD_CARE_GUIDELINES
-from pawpal_system import load_data, save_data, Task, Scheduler
+from pawpal_system import load_data, save_data, Task, Scheduler, AnalyticsEngine
 from ai.utils import extract_json
 
 logger = logging.getLogger(__name__)
@@ -221,7 +222,6 @@ def get_insights_tool(user_input: str, chat_history: list = None):
     """
     Evaluates historical data dynamically feeding natural language summaries over Analytics Arrays organically.
     """
-    from pawpal_system import AnalyticsEngine
     owner = load_data()
     engine = AnalyticsEngine(owner=owner)
     
@@ -269,7 +269,6 @@ def predictive_alerts_tool(user_input: str, chat_history: list = None):
     Scans the system for behavioral anomalies and missed tasks, then humanizes them via LLM.
     Strictly grounded in system data to prevent hallucinations.
     """
-    from pawpal_system import AnalyticsEngine
     owner = load_data()
     engine = AnalyticsEngine(owner=owner)
     
@@ -306,6 +305,10 @@ CRITICAL INSTRUCTIONS:
             options={"temperature": 0.0}  # Use 0.0 for maximum grounding
         )
         message = response.message.content.strip()
+        
+        # Lock intent to SUGGEST_SCHEDULE so a follow-up ("sure", "yes") triggers the real planner
+        st.session_state.active_intent = "SUGGEST_SCHEDULE"
+        
     except Exception as e:
         logger.error(f"[predictive_alerts] LLM failed: {e}")
         message = "I noticed some items might need your attention: " + ", ".join(anomalies)
@@ -317,7 +320,6 @@ def suggest_schedule_tool(user_input: str, chat_history: list = None):
     """
     Analyzes all pets, history, and current tasks to propose a comprehensive 'Smart Plan'.
     """
-    from pawpal_system import AnalyticsEngine
     owner = load_data()
     engine = AnalyticsEngine(owner=owner)
     

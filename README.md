@@ -39,7 +39,41 @@ PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It 
 
 PawPal+ uses a lightweight layered architecture wrapped smoothly around a Unified Conversational UI.
 
-![System Architecture](assets/architecture.png)
+```mermaid
+flowchart TD
+    User([User])
+
+    subgraph VC["View + Controller"]
+        UI["app.py<br/>Unified Chat Interface"]
+    end
+
+    subgraph AI["AI Service Layer"]
+        Router["ai/router.py<br/>Intent Classification"]
+        Tools["ai/tools/<br/>Granular Execution"]
+        Util["ai/utils.py<br/>JSON Sanitization"]
+    end
+
+    subgraph Core["Core Model"]
+        Engine["core/<br/>Package"]
+    end
+
+    subgraph Data["Data Layer"]
+        Store["core/persistence.py<br/>+ data/pawpal_data.json"]
+    end
+
+    Ollama([Ollama / llama3.2:3b])
+
+    User <-->|"Natural language<br/>over chat"| UI
+    UI <-->|"Async Streaming Chunks"| Router
+    Router <-->|Determine Action| Ollama
+    Router --> Tools
+    Tools <-->|Extract JSON\nvia Utility| Util
+    Util <-->|Generates args| Ollama
+    Tools -->|Silently apply changes| Engine
+    Engine <--> Store
+
+    style Ollama fill:#cfe2f3
+```
 
 | Layer | File(s) | Responsibility |
 |-------|---------|---------------|
@@ -53,11 +87,85 @@ The AI Service Layer gracefully restricts itself. When Ollama is disconnected, t
 
 ### AI Service Layer
 
-![AI Service Layer](assets/ai_layer.png)
+```mermaid
+flowchart LR
+    Ollama([Ollama / llama3.2:3b])
+
+    subgraph AI["AI Service Layer - ai/"]
+        Router["router.py<br/>Intent Classification"]
+        Tools["tools/<br/>Granular Modules"]
+        Util["utils.py<br/>Output Sanitization"]
+    end
+
+    Engine["core/<br/>Package"]
+
+    Ollama <--> Router
+    Router -->|Determines tool| Tools
+    Tools -->|Requests JSON| Ollama
+    Ollama -->|Conversational Output| Util
+    Util -->|"Stripped Markdown / JSON"| Tools
+    Tools --> Engine
+    Tools -->|"Returns conversational<br/>confirmation"| Router
+
+    style Ollama fill:#cfe2f3
+```
 
 ### UML Diagram
 
-![PawPal+ UML Class Diagram](assets/uml.png)
+```mermaid
+classDiagram
+    class Owner {
+        +str name
+        +int available_minutes
+        +dict preferences
+        +list pets
+        +list history
+        +add_pet(pet)
+    }
+    class Pet {
+        +str name
+        +str species
+        +int age
+        +list special_needs
+        +list tasks
+        +add_task(task)
+    }
+    class Task {
+        +str title
+        +int duration_minutes
+        +str priority
+        +str category
+        +str frequency
+        +bool completion_status
+        +str scheduled_time
+        +str id
+        +mark_complete()
+    }
+    class CompletionRecord {
+        +str task_id
+        +str pet_name
+        +str task_title
+        +str category
+        +timestamp
+    }
+    class Scheduler {
+        +Owner owner
+        +generate_plan()
+        +detect_time_conflicts()
+        +reschedule_if_recurring()
+    }
+    class AnalyticsEngine {
+        +Owner owner
+        +get_recent_history()
+        +get_unusual_patterns()
+    }
+
+    Owner "1" *-- "many" Pet
+    Owner "1" *-- "many" CompletionRecord
+    Pet "1" *-- "many" Task
+    Scheduler ..> Owner
+    AnalyticsEngine ..> Owner
+```
 
 ## Setup Instructions
 

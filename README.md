@@ -14,11 +14,11 @@ PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It 
 - **Data persistence**: all data saves to `data/pawpal_data.json` automatically on every change; restored on refresh or restart
 
 ## AI Features
-- **Floating Conversational Hub**: Access the Llama AI instantly through a persistent bottom-right action button without losing visibility of your manual dashboard.
-- **Dynamic Intent Routing**: The `router.py` parses user intent organically (e.g., Add Task vs Check Schedule) and routes it internally without requiring button clicks.
-- **Robust Anti-Guessing Extraction**: Natural language extraction strictly avoids guessing required fields (e.g., time, valid pet names). If data is lacking, the AI proactively returns a conversational counter-prompt instead of throwing errors or guessing.
-- **JSON Output Sanitization**: Integrated regex-based filtering strictly isolates python dictionaries from LLM conversational filler, ensuring resilient physical tooling.
-- **RAG chat assistant**: Ask questions regarding your pet schedule and receive context-aware responses purely sourced from your local JSON data files.
+- **Floating Conversational Hub**: Access the Llama AI instantly through a persistent action button without losing visibility of your manual dashboard.
+- **Dynamic Intent Routing**: The `router.py` parses user intent organically and routes it internally with multi-turn "Context Locking".
+- **Smart Scheduler & Predictive Alerts**: Proactively scans behavioral history to identify gaps and suggests a 'Smart Plan' based on species-specific guidelines.
+- **Contextual Knowledge Base**: Seeded with industry-standard care (Dogs: 30m walk/2x feeding; Cats: play/grooming) to ground AI advice in best practices.
+- **JSON Output Sanitization**: Integrated regex-based filtering strictly isolates python dictionaries from LLM conversational filler.
 
 ## Demo
 
@@ -42,10 +42,10 @@ PawPal+ uses a lightweight layered architecture wrapped smoothly around a Unifie
 
 | Layer | File(s) | Responsibility |
 |-------|---------|---------------|
-| Configuration | `config.py` | Centralized system instructions and LLM properties (no `.env` needed) |
-| View + Controller | `app.py` | Streamlit asynchronous streaming chat interface |
-| AI Service Layer | `ai/router.py`, `ai/tools.py`, `ai/utils.py` | Intent parsing, tool interactions, and markdown sanitization |
-| Core / Model | `pawpal_system.py` | Data model, scheduler, conflict detection, persistence |
+| Configuration | `config.py` | Centralized system instructions, pet care guidelines, and LLM properties |
+| View + Controller | `app.py` | Streamlit asynchronous streaming chat interface, batch plan confirmation UI |
+| AI Service Layer | `ai/router.py`, `ai/tools.py`, `ai/utils.py` | Intent parsing, zero-temperature grounding, tool interactions, and markdown sanitization |
+| Core / Model | `pawpal_system.py` | Data model, scheduler, AnalyticsEngine (anomaly detection), conflict detection, persistence |
 | Data Layer | `history.py`, `data/pawpal_data.json` | JSON persistence, completion history, analytics |
 
 The AI Service Layer gracefully restricts itself. When Ollama is disconnected, the system manages raw exceptions to prevent severe UI freezes.
@@ -73,9 +73,12 @@ AI features require Ollama to be running. The app works without it but NL task c
 
 ## Sample Interactions
 
-| NL Task Creation | "Schedule a 20min feeding for Mochi at 8am" | "Please verify this schedule: **Feeding** for **Mochi** at 08:00... Does this look accurate?" |
-| Proactive Planner | "What should I schedule?" | "Mochi hasn't had a walk today... I suggest adding a 30min walk at 14:00." |
-| Predictive Alert | "Check alerts" | "Everything looks on track! / I noticed Mochi is missing their daily walk. Should we schedule one?" |
+| Feature | User Input | AI Output |
+|---------|------------|-----------|
+| **NL Task Creation** | "Schedule a 20min feeding for Mochi at 8am" | "Please verify this schedule: **Feeding** for **Mochi** at 08:00... Does this look accurate?" |
+| **Proactive Planner** | "What should I schedule?" | "Mochi hasn't had a walk today... I suggest adding a 30min walk at 14:00." |
+| **Predictive Alert** | "Check alerts" | "Everything looks on track! / I noticed Mochi is missing their daily walk. Should we schedule one?" |
+| **Escape Action** | "Nevermind" | *Breaks active intent lock and returns to main menu context.* |
 
 ## Design Decisions
 
@@ -89,12 +92,10 @@ AI features require Ollama to be running. The app works without it but NL task c
 
 ## Testing Summary
 
-*Fill in after running the full test suite.*
-
 - **Automated tests**: 26 core tests passing (`pytest tests/test_pawpal.py`).
 - **Proactive Anomaly Detection**: `AnalyticsEngine` successfully identifies missed recurring tasks and triggers conversational alerts.
 - **Batch Plan Execution**: The AI assistant can process multiple pet requirements simultaneously and apply batch updates to the schedule upon user confirmation.
-- **Human evaluation**: Manually verified that "Smart Plan" suggestions respect pet species/age context (e.g., suggesting play for kittens).
+- **Human evaluation**: Manually verified that "Smart Plan" suggestions respect species guidelines and historical completion patterns.
 
 *Summary: All AI milestones complete. The system now acts as a proactive agent rather than a reactive scheduler.*
 
@@ -102,21 +103,17 @@ AI features require Ollama to be running. The app works without it but NL task c
 
 ### Limitations and biases
 
-- The NL task parser is only as good as the prompt. Unusual phrasing or ambiguous times may produce wrong field values with high confidence scores.
-- The predictive alert system flags patterns statistically. A pet that genuinely needs less grooming in winter may trigger false missed-task alerts.
-- Historical data reflects past owner behavior. If the owner was inconsistent early on, the smart scheduler learns those bad habits.
-- The system has no veterinary knowledge. It cannot determine whether a medication schedule is medically appropriate.
+- The NL task parser is only as good as the prompt. Unusual phrasing or ambiguous times may produce wrong field values.
+- The predictive alert system flags patterns statistically. Special seasonal needs may trigger false missed-task alerts.
+- Historical data reflects past owner behavior. The AI learn from user habits to suggest future "ideal" times.
+- The system has no veterinary knowledge. It cannot determine if a medication schedule is medically appropriate.
 
 ### Misuse and prevention
 
-- Primary risk is over-reliance: owners may treat AI health alerts as medical advice rather than pattern notices.
-- Mitigation: every Priority 4 alert includes *"This is a pattern notice, not medical advice. Consult your vet for health concerns."*
-
-### What surprised you during testing
-
-*Fill in with actual observations after testing.*
+- Primary risk is over-reliance: owners may treat AI health alerts as medical advice.
+- Mitigation: every Proactive Alert instruction includes strict grounding in provided database facts only.
 
 ### Collaboration with AI
 
-- **Helpful suggestion**: one instance where the AI's suggestion meaningfully improved your design
-- **Flawed suggestion**: one instance where the AI's suggestion was wrong, overkill, or broke something, and what you did instead
+- **Helpful suggestion**: Using a multi-turn "Intent Lock" in the router significantly improved the reliability of follow-up corrections (e.g., "Change the time to 5pm").
+- **Flawed suggestion**: Early attempts at alerts without "Zero-Temperature Grounding" led to hallucinations of fake pets like "Bella". Fixed via strict pet-list filtering and 0.0 temperature.

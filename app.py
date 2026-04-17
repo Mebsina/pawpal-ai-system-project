@@ -317,12 +317,13 @@ def confirm_task_cb(owner_ref, pt):
     if pet:
         pet.add_task(task_preview)
         save_data(owner_ref)
-    st.session_state.pending_action = None
-    st.session_state.chat_history.append({"role": "assistant", "content": f"Task confirmed! I have securely locked in '{task_preview.title}'."})
+    st.session_state.pending_action = {"type": "show_quick_menu"}
+    st.session_state.chat_history.append({"role": "assistant", "content": f"Task confirmed! I have securely locked in '{task_preview.title}'. Is there anything else you would like to do?"})
 
 def cancel_task_cb():
-    st.session_state.pending_action = None
-    st.session_state.chat_history.append({"role": "assistant", "content": "Task aborted! Let me know if you need to schedule something else."})
+    st.session_state.pending_action = {"type": "show_quick_menu"}
+    st.session_state.chat_history.append({"role": "user", "content": "Nevermind, cancel that task."})
+    st.session_state.chat_history.append({"role": "assistant", "content": "No problem! Task scheduling cancelled. What would you like to do instead?"})
 
 def sel_menu_cb(opt):
     st.session_state.pending_action = None
@@ -389,8 +390,11 @@ def ai_chat_dialog():
                 task_preview = pt["task_preview"]
                 st.info(f"**Proposed Schedule:** {task_preview.title} for {pt['pet_name']} at {task_preview.scheduled_time}")
                 
-                st.button("✅ Confirm", use_container_width=True, on_click=confirm_task_cb, args=(st.session_state.owner, pt))
-                st.button("❌ Cancel", use_container_width=True, on_click=cancel_task_cb)
+                confirm_col1, confirm_col2 = st.columns(2)
+                with confirm_col1:
+                    st.button("✅ Confirm", use_container_width=True, on_click=confirm_task_cb, args=(st.session_state.owner, pt))
+                with confirm_col2:
+                    st.button("❌ Cancel", use_container_width=True, on_click=cancel_task_cb)
                 
             elif action["type"] == "selection_menu":
                 for opt in action["options"]:

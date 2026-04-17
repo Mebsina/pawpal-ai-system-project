@@ -19,9 +19,10 @@ def classify_and_route(user_input: str, chat_history: list = None):
     system_prompt = """Classify the following user input into strictly ONE of the categories below:
 - ADD_TASK: The user wants to schedule a new care event (e.g. walk, feed).
 - CHECK_SCHEDULE: The user is asking to view or generate their daily plan.
-- HELP_MENU: The user requests help, asks what you can do, or asks for a menu or options.
+- HELP_MENU: The user explicitly types 'menu', requests help, asks what you can do, or asks for options.
 - GENERAL_CHAT: The user is saying hello or asking conversational questions.
 
+CRITICAL RULE: You MUST classify the intent of the VERY LAST MESSAGE in the sequence. Previous messages are ONLY context. 
 Return absolutely nothing but the exact category string."""
 
     messages = [{"role": "system", "content": system_prompt}]

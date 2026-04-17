@@ -293,6 +293,7 @@ class Scheduler:
         self,
         pet_name: str | None = None,
         status: bool | None = None,
+        target_date: str | None = None,
     ) -> list[Task]:
         """Return tasks filtered by pet name and/or completion status.
 
@@ -305,6 +306,8 @@ class Scheduler:
             If provided, only include tasks whose completion_status
             matches this value (False = incomplete, True = complete).
             Pass None to include both.
+        target_date:
+            If provided, strict matching against the task's due_date standard.
 
         Returns
         -------
@@ -317,6 +320,7 @@ class Scheduler:
             for task in pet.tasks
             if (pet_name is None or pet.name == pet_name)
             and (status is None or task.completion_status == status)
+            and (target_date is None or task.due_date == target_date)
         ]
 
     def sort_by_time(self, tasks: list[Task]) -> list[Task]:

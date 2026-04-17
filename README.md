@@ -167,6 +167,38 @@ classDiagram
     AnalyticsEngine ..> Owner
 ```
 
+### System Organization
+
+The system is designed as an agentic pipeline with automated validation and human-in-the-loop checkpoints.
+
+```mermaid
+flowchart LR
+    Input([User Input]) --> Agent
+    
+    subgraph System["PawPal+ Agentic Pipeline"]
+        Agent["<b>Agent</b><br/>router.py + tools/"]
+        Retriever["<b>Retriever</b><br/>persistence.py"]
+        Evaluator["<b>Evaluator / Tester</b><br/>JSON Sanitizer +<br/>Logic Validation"]
+    end
+    
+    Retriever -- "Fetches Data Context" --> Agent
+    Agent <--> Ollama([Ollama LLM])
+    Agent -- "Raw Output" --> Evaluator
+    
+    Evaluator -- "Low Confidence / Error" --> Agent
+    Evaluator -- "Valid Proposal" --> HumanCheck{<b>Human Check</b><br/>UI Confirmation}
+    
+    HumanCheck -- "Confirm" --> State([Updated JSON State])
+    HumanCheck -- "Reject / Rephrase" --> Input
+```
+
+| Component | Role | Logic |
+|-----------|------|-------|
+| **Retriever** | Data Fetching | Loads pet profiles, history, and schedule from `pawpal_data.json` into AI context. |
+| **Agent** | Orchestration | Interprets intent and coordinates tool execution with the local LLM. |
+| **Evaluator / Tester** | Self-Correction | Validates AI payloads for JSON integrity, scheduling conflicts, and care guidelines. |
+| **Human Check** | Decision Guard | Final verification step where the owner approves or rejects AI Proposals. |
+
 ## Setup Instructions
 
 ```bash

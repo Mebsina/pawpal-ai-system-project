@@ -8,6 +8,7 @@ from ai.tools.predictive_alerts import predictive_alerts_tool
 # Test: healthy history ("everything on track") grounding
 # Test: anomaly humanization and scheduling follow-up
 # Test: Ollama service failure fallback
+# Test: malformed JSON extraction failure resilience
 # ---------------------------------------------------------------------------
 
 @pytest.mark.usefixtures("mock_persistence")
@@ -69,3 +70,21 @@ def test_predictive_alerts_ollama_failure_fallback(mock_ollama, mock_owner):
     
     assert "might need your attention" in result
     assert "Mochi" in result
+
+@pytest.mark.usefixtures("mock_persistence")
+def test_predictive_alerts_extraction_failure(mock_ollama, mock_owner):
+    """Ensure malformed JSON extraction returns a raw response."""
+    mock_ollama.return_value = mock_ollama.response_class("Raw alerts summary.")
+    from core.models import Task
+    mock_owner.pets[0].tasks.append(Task(
+        title="Missed Task", 
+        duration_minutes=10, 
+        priority="high", 
+        category="feeding", 
+        frequency="daily", 
+        due_date="2000-01-01"
+    ))
+    
+    with patch("ai.tools.predictive_alerts.load_data", return_value=mock_owner):
+        result = predictive_alerts_tool("Alerts?")
+    assert result == "Raw alerts summary."

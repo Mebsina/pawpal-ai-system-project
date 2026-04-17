@@ -1,6 +1,7 @@
 import pytest
 import json
 from unittest.mock import MagicMock, patch
+from datetime import datetime
 from ai.tools.suggest_schedule import suggest_schedule_tool
 
 # ---------------------------------------------------------------------------
@@ -9,6 +10,15 @@ from ai.tools.suggest_schedule import suggest_schedule_tool
 # Test: multi-turn agentic feedback loop
 # Test: baseline pet care enforcement (feed/walk)
 # Test: Ollama service error handling
+# Test: confidence threshold early exit
+# Test: refinement turn limitation (max 5)
+# Test: daily time budget enforcement
+# Test: invalid HH:MM time string rejection
+# Test: same-category task proximity checks
+# Test: schema validation failure retries
+# Test: existing task conflict detection
+# Test: play/grooming classification logic
+# Test: no-suggestion fallback behavior
 # ---------------------------------------------------------------------------
 
 @pytest.mark.usefixtures("mock_persistence")
@@ -270,3 +280,99 @@ def test_suggest_schedule_same_category_proximity_check(mock_ollama, mock_owner)
         
     feedback = mock_ollama.call_args_list[1][1]["messages"][-1]["content"]
     assert "TOO_CLOSE" in feedback
+
+def test_suggest_schedule_schema_validation_failure(mock_ollama, mock_owner):
+    """Ensure schema validation failures trigger a retry."""
+    # Turn 1: Missing "summary"
+    bad_schema = {"suggestions": [], "confidence": 0.5}
+    # Turn 2: Valid and complete (no gaps)
+    good_schema = {
+        "summary": "Ok", 
+        "suggestions": [
+            {"pet_name": "Mochi", "title": "Feed", "scheduled_time": "08:00", "duration_minutes": 10, "category": "feeding"},
+            {"pet_name": "Mochi", "title": "Walk", "scheduled_time": "10:00", "duration_minutes": 30, "category": "exercise"}
+        ], 
+        "confidence": 0.95
+    }
+    
+    mock_ollama.side_effect = [
+        mock_ollama.response_class(json.dumps(bad_schema)),
+        mock_ollama.response_class(json.dumps(good_schema))
+    ]
+    
+    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
+        suggest_schedule_tool("Plan")
+    
+    assert mock_ollama.call_count == 2
+
+def test_suggest_schedule_conflict_with_existing(mock_ollama, mock_owner):
+    """Ensure conflicts with existing tasks are identified."""
+    from core.models import Task
+    # Add an existing task at 08:00
+    mock_owner.pets[0].tasks.append(Task(
+        title="Existing Walk", 
+        scheduled_time="08:00", 
+        duration_minutes=30,
+        priority="high",
+        frequency="daily",
+        due_date=datetime.now().strftime("%Y-%m-%d"),
+        category="exercise"
+    ))
+    
+    # LLM suggests something at exactly 08:00
+    conflict_response = {
+        "summary": "Conflict plan",
+        "suggestions": [
+            {"pet_name": "Mochi", "title": "Conflicting Feed", "scheduled_time": "08:00", "duration_minutes": 10, "category": "feeding"}
+        ],
+        "confidence": 0.95
+    }
+    
+    mock_ollama.return_value = mock_ollama.response_class(json.dumps(conflict_response))
+    
+    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
+        result = suggest_schedule_tool("Plan")
+    
+    # When conflicts prevent all suggestions, it returns the fallback string
+    assert "couldn't identify any new tasks" in result
+
+def test_suggest_schedule_classify_play_and_grooming(mock_ollama, mock_owner):
+    """Exercise Play and Grooming classification branches."""
+    response = {
+        "summary": "Full plan",
+        "suggestions": [
+            {"pet_name": "Mochi", "title": "Play with ball", "scheduled_time": "14:00", "duration_minutes": 15, "category": "fun"},
+            {"pet_name": "Mochi", "title": "Bath time", "scheduled_time": "16:00", "duration_minutes": 30, "category": "cleaning"}
+        ],
+        "confidence": 0.95
+    }
+    mock_ollama.return_value = mock_ollama.response_class(json.dumps(response))
+    
+    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
+        # This will cover the _classify logic for play/grooming
+        suggest_schedule_tool("Plan")
+    
+    assert mock_ollama.called
+
+def test_suggest_schedule_no_suggestions_fallback(mock_ollama, mock_owner):
+    """Ensure fallback message when no suggestions can be made."""
+    mock_ollama.return_value = mock_ollama.response_class(json.dumps({
+        "summary": "Nothing to add",
+        "suggestions": [],
+        "confidence": 0.95
+    }))
+    
+    # Force it to have zero suggestions and no issues (so it doesn't gap-loop)
+    # Actually, it will gap-loop if there's no feeding. 
+    # Let's mock the owner to already have feeding/activity today.
+    from core.models import Task
+    today = datetime.now().strftime("%Y-%m-%d")
+    mock_owner.pets[0].tasks = [
+        Task(title="Feed", category="feeding", scheduled_time="08:00", due_date=today, duration_minutes=10, priority="high", frequency="daily"),
+        Task(title="Walk", category="exercise", scheduled_time="10:00", due_date=today, duration_minutes=30, priority="high", frequency="daily")
+    ]
+    
+    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
+        result = suggest_schedule_tool("Plan")
+    
+    assert "couldn't identify any new tasks" in result

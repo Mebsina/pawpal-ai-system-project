@@ -8,6 +8,7 @@ import core.persistence
 # Test: save/load round-trip preserves full state integrity
 # Test: missing file returns default owner (first-run logic)
 # Test: corrupted JSON recovery (resilience to malformed files)
+# Test: parent-child relationship linkage persistence
 # ---------------------------------------------------------------------------
 
 def test_save_load_round_trip():

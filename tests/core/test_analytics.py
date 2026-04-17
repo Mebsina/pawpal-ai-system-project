@@ -5,9 +5,11 @@ from core import Owner, Pet, Task, CompletionRecord, AnalyticsEngine
 # Analytics Engine
 # Test: recent history filtered by day range
 # Test: empty history state resilience
-# Test: unusual patterns for overdue legacy tasks
+# Test: unusual patterns for overdue legacy tasks (due_date in past)
 # Test: missed today task detection (scheduled time passed)
-# Test: history lookup boundary conditions
+# Test: history lookup boundary conditions (inclusive logic)
+# Test: history cleanup simulation on task uncompletion
+# Test: malformed timestamp handling in historical records
 # ---------------------------------------------------------------------------
 
 def test_analytics_get_recent_history():
@@ -104,3 +106,13 @@ def test_analytics_cleanup_on_uncomplete():
     owner.history = [r for r in owner.history if r.task_id != task.id]
     
     assert len(owner.history) == 0
+
+def test_get_recent_history_malformed_timestamp():
+    """Ensure malformed timestamps in history are skipped without crashing."""
+    owner = Owner(name="Alex", available_minutes=60)
+    owner.history.append(CompletionRecord("1", "Mochi", "Bad Time", "exercise", "not-a-timestamp"))
+    
+    engine = AnalyticsEngine(owner=owner)
+    # Should not raise ValueError
+    recent = engine.get_recent_history(days=7)
+    assert len(recent) == 0

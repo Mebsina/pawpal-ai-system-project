@@ -91,3 +91,46 @@ def test_router_malformed_json_falls_back_to_chat(mock_session_state, mock_ollam
     with patch("ai.router.conversational_bypass", return_value="Graceful Fallback") as mock_bypass:
         result = classify_and_route("what is this")
         assert result == "Graceful Fallback"
+
+def test_router_with_chat_history(mock_session_state, mock_ollama):
+    """Ensure chat history is correctly passed to the extraction module."""
+    mock_session_state.active_intent = None
+    chat_history = [{"role": "user", "content": "hello"}, {"role": "assistant", "content": "hi"}]
+    mock_ollama.return_value = mock_ollama.response_class(json.dumps({"intent": "GENERAL_CHAT", "confidence": 0.9}))
+    
+    classify_and_route("latest message", chat_history=chat_history)
+    
+    # Verify that ollama.chat was called with messages including chat_history
+    called_messages = mock_ollama.call_args.kwargs["messages"]
+    assert any(m["content"] == "hello" for m in called_messages)
+    assert any(m["content"] == "hi" for m in called_messages)
+
+def test_router_restricted_keywords_filter(mock_session_state, mock_ollama):
+    """Verify that restricted keywords trigger a guardrail warning in logs."""
+    mock_session_state.active_intent = None
+    # Response contains 'veterinarian' which is restricted
+    mock_ollama.return_value = mock_ollama.response_class(json.dumps({"intent": "GENERAL_CHAT", "confidence": 0.9, "extra": "Go to a veterinarian"}))
+    
+    with patch("ai.router.check_restricted_keywords") as mock_check:
+        classify_and_route("give me advice")
+        assert mock_check.called
+
+def test_conversational_bypass_with_history(mock_ollama):
+    """Ensure conversational fallback respects chat history."""
+    from ai.router import conversational_bypass
+    chat_history = [{"role": "user", "content": "I love dogs"}]
+    mock_ollama.return_value = mock_ollama.response_class("Me too!")
+    
+    result = conversational_bypass("And cats?", chat_history=chat_history)
+    
+    assert result == "Me too!"
+    called_messages = mock_ollama.call_args.kwargs["messages"]
+    assert any(m["content"] == "I love dogs" for m in called_messages)
+
+def test_conversational_bypass_failure(mock_ollama):
+    """Ensure conversational fallback handles API failures gracefully."""
+    from ai.router import conversational_bypass
+    mock_ollama.side_effect = Exception("API Down")
+    
+    result = conversational_bypass("hello")
+    assert "trouble maintaining conversation" in result

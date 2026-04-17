@@ -8,6 +8,8 @@ from ai.tools.get_insights import get_insights_tool
 # Test: structured analytical summary extraction
 # Test: empty history state handling
 # Test: chat history context passing
+# Test: Ollama service failure fallback
+# Test: malformed JSON extraction failure resilience
 # ---------------------------------------------------------------------------
 
 @pytest.mark.usefixtures("mock_persistence")
@@ -60,7 +62,27 @@ def test_get_insights_context_passing(mock_ollama, mock_owner):
         get_insights_tool("Current question", chat_history=chat_history)
     
     called_messages = mock_ollama.call_args[1]["messages"]
-    # Should have System prompt, 1 chat history item, and the current user input
     assert len(called_messages) == 3
     assert called_messages[1]["content"] == "Previous question"
     assert called_messages[2]["content"] == "Current question"
+
+def test_get_insights_ollama_failure(mock_ollama, mock_owner):
+    """Ensure API failures return a stable fallback message."""
+    mock_ollama.side_effect = Exception("Ollama disconnected")
+    # Add history so it doesn't return early
+    from core.models import CompletionRecord
+    mock_owner.history.append(CompletionRecord("1", "Mochi", "X", "Y", "2026-04-17T08:00:00"))
+    
+    with patch("ai.tools.get_insights.load_data", return_value=mock_owner):
+        result = get_insights_tool("Show insights")
+    assert "having trouble summarizing" in result
+
+def test_get_insights_extraction_failure(mock_ollama, mock_owner):
+    """Ensure malformed JSON extraction returns a raw response."""
+    mock_ollama.return_value = mock_ollama.response_class("Raw conversational response")
+    from core.models import CompletionRecord
+    mock_owner.history.append(CompletionRecord("1", "Mochi", "X", "Y", "2026-04-17T08:00:00"))
+    
+    with patch("ai.tools.get_insights.load_data", return_value=mock_owner):
+        result = get_insights_tool("Show insights")
+    assert result == "Raw conversational response"

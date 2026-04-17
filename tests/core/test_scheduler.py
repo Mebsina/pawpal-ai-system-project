@@ -2,12 +2,15 @@ from core import Owner, Pet, Task, Scheduler
 from config import PRIORITY_ORDER
 
 # ---------------------------------------------------------------------------
-# Sorting correctness
-# Test: tasks returned in chronological order
-# Test: single task list
-# Test: already-sorted input unchanged
-# Test: midnight (00:00) sorts before all other times
-# Test: all identical times preserves all tasks
+# Scheduler Core Logic
+# Test: tasks returned in chronological order (including midnight/duplicate times)
+# Test: daily/weekly recurrence logic across month and year boundaries
+# Test: idempotent rescheduling safeguards
+# Test: conflict detection for duplicate and overlapping time slots
+# Test: cross-pet conflict identification
+# Test: budget-aware and priority-sorted plan generation
+# Test: multi-pet and completion-status task filtering
+# Test: malformed time string parsing fallback (_to_minutes)
 # ---------------------------------------------------------------------------
 
 def test_sort_by_time_returns_chronological_order():
@@ -77,14 +80,6 @@ def test_sort_by_time_all_same_time_preserves_length():
     assert all(t.scheduled_time == "08:00" for t in result)
 
 
-# ---------------------------------------------------------------------------
-# Recurrence logic
-# Test: daily task creates next-day occurrence
-# Test: once frequency returns None and adds no task
-# Test: weekly frequency advances by 7 days
-# Test: daily task rolls over month boundary
-# Test: daily task rolls over year boundary
-# ---------------------------------------------------------------------------
 
 
 def test_reschedule_if_recurring_daily_creates_next_day_task():
@@ -194,15 +189,6 @@ def test_reschedule_rolls_over_year_boundary():
     assert next_task.due_date == "2027-01-01"
 
 
-# ---------------------------------------------------------------------------
-# Conflict detection
-# Test: duplicate times flagged with a warning
-# Test: unique times produce no warnings
-# Test: three tasks at same slot produce one warning with all titles
-# Test: conflicts across different pets detected
-# Test: two separate conflicting slots produce two warnings
-# Test: midnight slot (00:00) not exempt from conflict detection
-# ---------------------------------------------------------------------------
 
 
 def test_detect_time_conflicts_flags_duplicate_times():
@@ -314,15 +300,13 @@ def test_detect_conflicts_partial_overlap():
     
     conflicts = scheduler.detect_time_conflicts()
     
-    # NOTE: This is a known gap. Current implementation only checks exact HH:MM strings.
-    # We expect this to fail (return 0 conflicts) until logic is upgraded.
+    # Verify that partial overlaps are correctly identified using interval logic
     assert len(conflicts) >= 1
-    assert "08:15" in conflicts[0] or "overlap" in conflicts[0].lower()
+    assert "around 08:00" in conflicts[0]
+    assert "Long Walk" in conflicts[0]
+    assert "Quick Feed" in conflicts[0]
 
 
-# ---------------------------------------------------------------------------
-# Scheduler: generate_plan logic
-# ---------------------------------------------------------------------------
 
 
 def test_generate_plan_respects_budget():
@@ -387,9 +371,6 @@ def test_generate_plan_all_fit():
     assert plan.unscheduled == []
 
 
-# ---------------------------------------------------------------------------
-# Scheduler: filter_tasks logic
-# ---------------------------------------------------------------------------
 
 
 def test_filter_tasks_by_pet():
@@ -426,3 +407,15 @@ def test_filter_tasks_by_status():
     pending_tasks = scheduler.filter_tasks(status=False)
     assert len(pending_tasks) == 1
     assert pending_tasks[0].title == "Not Done"
+
+def test_to_minutes_fallback():
+    """Ensure _to_minutes handles malformed HH:MM strings gracefully."""
+    owner = Owner(name="Test", available_minutes=60)
+    scheduler = Scheduler(owner=owner)
+    
+    # Valid
+    assert scheduler._to_minutes("08:30") == 510
+    # Invalid formats
+    assert scheduler._to_minutes("invalid") == 0
+    assert scheduler._to_minutes("12") == 0
+    assert scheduler._to_minutes(None) == 0

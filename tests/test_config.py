@@ -1,7 +1,10 @@
-"""
-test_config.py
-Verifies that essential system constants and care guidelines are present and correctly typed.
-"""
+# ---------------------------------------------------------------------------
+# System Configuration
+# Test: MODEL_NAME default value
+# Test: STRICT and CHAT temperature range validation
+# Test: PRIORITY_ORDER weight map integrity
+# Test: STANDARD_CARE_GUIDELINES presence and content grounding
+# ---------------------------------------------------------------------------
 
 import pytest
 import config

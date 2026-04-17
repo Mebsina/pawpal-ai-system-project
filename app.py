@@ -167,9 +167,9 @@ else:
     all_tasks_with_pet = [(pet, t) for pet in owner.pets for t in pet.tasks]
 
     if all_tasks_with_pet:
-        st.markdown(f"**All Tasks** ({len(all_tasks_with_pet)} total)")
+        st.markdown(f"**Task Dashboard** ({len(all_tasks_with_pet)} tasks across {len(owner.pets)} pets)")
 
-        col_sort, col_filter = st.columns(2)
+        col_sort, col_filter, col_toggle = st.columns([2, 2, 1.5])
         with col_sort:
             sort_by = st.selectbox(
                 "Sort by",
@@ -179,70 +179,103 @@ else:
         with col_filter:
             all_priorities = ["All"] + sorted({t.priority for _, t in all_tasks_with_pet})
             filter_priority = st.selectbox("Filter by priority", all_priorities, key="task_filter")
+        with col_toggle:
+            st.write("") # spacer
+            hide_completed = st.checkbox("Hide Done", value=False)
 
-        displayed = [
-            (pet, t) for pet, t in all_tasks_with_pet
-            if filter_priority == "All" or t.priority == filter_priority
-        ]
+        tab_today, tab_upcoming, tab_all = st.tabs(["📅 Today", "🔜 Upcoming", "📜 All Tasks"])
+        
+        today_iso = ddate.today().isoformat()
+        
+        def render_pet_grouped_tasks(task_list, key_prefix="all"):
+            if not task_list:
+                st.info("Clear! No tasks found.")
+                return
 
-        if sort_by == "Time":
-            displayed = sorted(displayed, key=lambda pt: pt[1].scheduled_time)
-        elif sort_by == "Priority (high first)":
-            displayed = sorted(displayed, key=lambda pt: -PRIORITY_ORDER[pt[1].priority])
-        else:
-            displayed = sorted(displayed, key=lambda pt: pt[1].duration_minutes)
+            # Apply global sorting/priority filter
+            filtered = [
+                (p, t) for p, t in task_list 
+                if (filter_priority == "All" or t.priority == filter_priority)
+                and (not hide_completed or not t.completion_status)
+            ]
+            
+            if not filtered:
+                st.info("No tasks match your filters.")
+                return
 
-        high_count = sum(1 for _, t in displayed if t.priority == "high")
-        if high_count:
-            st.warning(f"{high_count} high-priority task(s) in view.")
-        else:
-            st.success(f"Showing {len(displayed)} task(s). No high-priority items outstanding.")
+            if sort_by == "Time":
+                filtered = sorted(filtered, key=lambda pt: pt[1].scheduled_time)
+            elif sort_by == "Priority (high first)":
+                filtered = sorted(filtered, key=lambda pt: -PRIORITY_ORDER[pt[1].priority])
+            else:
+                filtered = sorted(filtered, key=lambda pt: pt[1].duration_minutes)
 
-        if displayed:
-            header = st.columns([1, 1, 1, 1.5, 1.1, 1, 1.1, 1, 1])
-            for col, label in zip(header, ["Task", "Pet", "Time", "Due Date", "Duration", "Priority", "Category", "Freq", "Done"]):
-                col.markdown(f"**{label}**")
-            st.divider()
-            for pet, t in displayed:
-                row = st.columns([1, 1, 1, 1.5, 1.1, 1, 1.1, 1, 1])
-                row[0].write(("~~" + t.title + "~~") if t.completion_status else t.title)
-                row[1].write(pet.name)
-                row[2].write(t.scheduled_time)
-                row[3].write(t.due_date)
-                row[4].write(t.duration_minutes)
-                row[5].write(PRIORITY_EMOJI.get(t.priority, t.priority))
-                category_label = f"{CATEGORY_EMOJI.get(t.category.lower(), '')} {t.category}".strip()
-                row[6].write(category_label)
-                row[7].write(t.frequency)
-                if t.completion_status:
-                    if row[8].button("No", type="primary", key=f"uncomplete_{t.id}", use_container_width=True):
-                        t.completion_status = False
-                        if t.created_next_task_id:
-                            pet.tasks = [task for task in pet.tasks if task.id != t.created_next_task_id]
-                            t.created_next_task_id = None
-                        # Remove historical ledger records for this specific task instance
-                        owner.history = [r for r in owner.history if r.task_id != t.id]
-                        save_data(owner)
-                        st.rerun()
-                else:
-                    if row[8].button("Yes", type="secondary", key=f"complete_{t.id}", use_container_width=True):
-                        # Construct native analytics tracking ledger
-                        from pawpal_system import CompletionRecord
-                        from datetime import datetime
-                        record = CompletionRecord(
-                            task_id=t.id,
-                            pet_name=pet.name,
-                            task_title=t.title,
-                            category=t.category,
-                            timestamp=f"{t.due_date}T{t.scheduled_time}"
-                        )
-                        owner.history.append(record)
+            # Conditional container: use fixed height for scrolling only when tasks > 5
+            container_args = {"height": 400} if len(filtered) > 5 else {}
+            with st.container(**container_args):
+                # We group by pet to remove the Pet column and improve hierarchy
+                from itertools import groupby
+                # Sort by pet name for groupby
+                filtered.sort(key=lambda pt: pt[0].name)
+                for pet_name, group in groupby(filtered, key=lambda pt: pt[0].name):
+                    st.markdown(f"**{SPECIES_EMOJI.get(next(iter(group))[0].species, '🐾')} {pet_name}**")
+                    # Re-extract group because groupby iterator is exhausted
+                    pet_tasks = [ (p,t) for p,t in filtered if p.name == pet_name ]
+                    
+                    header = st.columns([1.5, 1, 1.5, 1, 1, 1.2, 1, 1])
+                    labels = ["Task", "Time", "Due Date", "Dur", "Pri", "Category", "Freq", "Done"]
+                    for col, label in zip(header, labels):
+                        col.caption(f"**{label}**")
+                    
+                    for pt_pet, t in pet_tasks:
+                        row = st.columns([1.5, 1, 1.5, 1, 1, 1.2, 1, 1])
+                        row[0].write(("~~" + t.title + "~~") if t.completion_status else t.title)
+                        row[1].write(t.scheduled_time)
+                        row[2].write(t.due_date)
+                        row[3].write(f"{t.duration_minutes}m")
+                        row[4].write(PRIORITY_EMOJI.get(t.priority, t.priority))
+                        cat_label = f"{CATEGORY_EMOJI.get(t.category.lower(), '')} {t.category}".strip()
+                        row[5].write(cat_label)
+                        row[6].write(t.frequency)
+                        
+                        btn_label = "No" if t.completion_status else "Yes"
+                        btn_type = "primary" if t.completion_status else "secondary"
+                        if row[7].button(btn_label, type=btn_type, key=f"{key_prefix}_btn_{t.id}", use_container_width=True):
+                            if t.completion_status:
+                                # Undo logic
+                                t.completion_status = False
+                                if t.created_next_task_id:
+                                    pt_pet.tasks = [task for task in pt_pet.tasks if task.id != t.created_next_task_id]
+                                    t.created_next_task_id = None
+                                owner.history = [r for r in owner.history if r.task_id != t.id]
+                            else:
+                                # Complete logic
+                                from pawpal_system import CompletionRecord
+                                from datetime import datetime
+                                record = CompletionRecord(
+                                    task_id=t.id,
+                                    pet_name=pt_pet.name,
+                                    task_title=t.title,
+                                    category=t.category,
+                                    timestamp=f"{t.due_date}T{t.scheduled_time}"
+                                )
+                                owner.history.append(record)
+                                Scheduler(owner=owner).reschedule_if_recurring(task=t, pet=pt_pet)
+                            
+                            save_data(owner)
+                            st.rerun()
+                    st.divider()
 
-                        Scheduler(owner=owner).reschedule_if_recurring(task=t, pet=pet)
-                        save_data(owner)
-                        st.rerun()
-        else:
-            st.info("No tasks match the selected filter.")
+        with tab_today:
+            today_tasks = [(p, t) for p, t in all_tasks_with_pet if t.due_date == today_iso]
+            render_pet_grouped_tasks(today_tasks, key_prefix="today")
+            
+        with tab_upcoming:
+            upcoming_tasks = [(p, t) for p, t in all_tasks_with_pet if t.due_date > today_iso]
+            render_pet_grouped_tasks(upcoming_tasks, key_prefix="upcoming")
+            
+        with tab_all:
+            render_pet_grouped_tasks(all_tasks_with_pet, key_prefix="all")
 
         st.markdown("**Pet Special Needs**")
         for pet in owner.pets:

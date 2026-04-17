@@ -8,7 +8,7 @@ import ollama
 from datetime import datetime
 
 from config import MODEL_NAME, STRICT_TEMPERATURE
-from pawpal_system import load_data, save_data, Task
+from pawpal_system import load_data, save_data, Task, Scheduler
 from ai.utils import extract_json
 
 logger = logging.getLogger(__name__)
@@ -129,6 +129,21 @@ Output: {{"title": null, "pet_name": null, "duration_minutes": null, "priority":
             frequency=extracted_data.get("frequency") or "once",
             notes="Generated seamlessly via Conversational UI Hub"
         )
+        
+        # Actively map the proposal natively onto the pet instance structurally so Conflict Tracker detects the pet!
+        matching_pet.tasks.append(task_preview)
+        
+        # Cross-reference the integrated calendar array mathematically
+        all_existing = [t for p in owner.pets for t in p.tasks]
+        conflicts = Scheduler(owner=owner).detect_time_conflicts(tasks=all_existing)
+        
+        # Detach immediately avoiding silent data injection
+        matching_pet.tasks.remove(task_preview)
+        
+        if conflicts:
+            conflict_str = " and ".join(conflicts)
+            return f"I can't lock that in just yet! ⚠ I noticed {conflict_str}.\n\nWhat alternative time would work better?"
+            
     except Exception as e:
         logger.error(f"Task object creation failed: {e}")
         return "There was an error processing the task details. Please try again."

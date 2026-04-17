@@ -9,7 +9,7 @@ import ollama
 import streamlit as st
 
 from config import MODEL_NAME, STRICT_TEMPERATURE, CHAT_TEMPERATURE
-from ai.tools import add_task_tool, check_schedule_tool, get_insights_tool
+from ai.tools import add_task_tool, check_schedule_tool, get_insights_tool, predictive_alerts_tool, suggest_schedule_tool
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +21,14 @@ def classify_and_route(user_input: str, chat_history: list = None):
     
     # 1. Physical User Override: Provide clean organic escape routes from active loops unconditionally
     hard_input = user_input.lower().strip()
-    if hard_input in ["menu", "help", "cancel", "nevermind", "stop", "abort"]:
+    # Broaden the escape list to include common 'get me out of here' phrases
+    escape_keywords = [
+        "menu", "help", "options", "cancel", "nevermind", "stop", 
+        "abort", "exit", "quit", "start over", "restart", "back"
+    ]
+    if hard_input in escape_keywords or hard_input.startswith("exit "):
         st.session_state.active_intent = None
+        logger.info(f"[ai/router] Intent lock manually released via keyword: {hard_input}")
 
     # 2. Sequential Intent Lock: Force strict continuity bypassing LLM variance if already trapped in an active tool loop
     locked_intent = st.session_state.get("active_intent")
@@ -71,7 +77,6 @@ Return absolutely nothing but the exact category string."""
             return "I am currently unable to interpret requests. Please verify the local AI engine is running."
 
     # 3. Intent Delegation & Persistence Updates
-    from ai.tools import predictive_alerts_tool, suggest_schedule_tool
     
     if "ADD_TASK" in intent:
         st.session_state.active_intent = "ADD_TASK"

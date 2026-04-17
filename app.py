@@ -43,6 +43,9 @@ if "next_occurrences" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [{"role": "assistant", "content": "Hi! How can I help you and your pets today?"}]
 
+if "pending_task" not in st.session_state:
+    st.session_state.pending_task = None
+
 owner = st.session_state.owner
 
 # --- Owner Info ---
@@ -350,11 +353,51 @@ def ai_chat_dialog():
             # Route to AI and conditionally draw the spinner securely above the input
             with st.chat_message("assistant"):
                 with st.spinner("Responding..."):
-                    response_text = classify_and_route(user_prompt)
+                    raw_response = classify_and_route(user_prompt)
+                    
+                    # Intercept structural dictionaries to block DB committing gracefully
+                    if isinstance(raw_response, dict) and raw_response.get("type") == "task_confirmation":
+                        st.session_state.pending_task = raw_response
+                        response_text = raw_response["message"]
+                    else:
+                        response_text = raw_response
+                        
                 st.markdown(response_text)
                 
         # Save assistant message to state
         st.session_state.chat_history.append({"role": "assistant", "content": response_text})
+
+    # Structural UI intercept specifically managing dynamic AI Confirmations
+    if st.session_state.pending_task:
+        pt = st.session_state.pending_task
+        task_preview = pt["task_preview"]
+        
+        st.info(f"**Proposed Schedule:** {task_preview.title} for {pt['pet_name']} at {task_preview.scheduled_time}")
+        c1, c2 = st.columns(2)
+        
+        # Lock in manual database operations strictly based on user authorization
+        if c1.button("✅ Confirm", use_container_width=True):
+            owner = st.session_state.owner
+            pet = next((p for p in owner.pets if p.name == pt["pet_name"]), None)
+            if pet:
+                pet.add_task(task_preview)
+                save_data(owner)
+                st.session_state.pending_task = None
+                
+                success_msg = f"Task confirmed! I have securely locked in '{task_preview.title}'."
+                st.session_state.chat_history.append({"role": "assistant", "content": success_msg})
+                # Visually update the UI instantly without forcing a destructive rerun
+                with msg_container:
+                    with st.chat_message("assistant"):
+                        st.write(success_msg)
+                        
+        if c2.button("❌ Cancel", use_container_width=True):
+            st.session_state.pending_task = None
+            cancel_msg = "Task aborted! Let me know if you need to schedule something else."
+            st.session_state.chat_history.append({"role": "assistant", "content": cancel_msg})
+            with msg_container:
+                with st.chat_message("assistant"):
+                    st.write(cancel_msg)
         # The dialog natively resets on its own, ensuring the input stays anchored, with no full-app rerun required
 
 

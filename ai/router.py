@@ -12,7 +12,7 @@ from ai.tools import add_task_tool
 
 logger = logging.getLogger(__name__)
 
-def classify_and_route(user_input: str) -> str:
+def classify_and_route(user_input: str):
     """
     Classifies the unified intention and delegates payload processing to specific modular tools.
     """

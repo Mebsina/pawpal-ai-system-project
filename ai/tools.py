@@ -12,10 +12,10 @@ from ai.utils import extract_json
 
 logger = logging.getLogger(__name__)
 
-def add_task_tool(user_input: str) -> str:
+def add_task_tool(user_input: str):
     """
     Parses user input to extract required task parameters, enforces the conversational 
-    anti-guessing protocol for missing parameters, and applies the physical creation in the DB.
+    anti-guessing protocol for missing parameters, and packages the physical Draft natively for UI validation.
     """
     owner = load_data()
     pet_names = [p.name for p in owner.pets]
@@ -62,6 +62,7 @@ Return strictly a JSON dictionary featuring the following keys. Do not guess val
         
     pet_name = extracted_data.get("pet_name")
     scheduled_time = extracted_data.get("scheduled_time")
+    title = extracted_data.get("title")
     
     # Single-Pet Automatic Assignment (The Anti-Guessing Single-Pet Exception)
     if len(pet_names) == 1 and not pet_name:
@@ -71,8 +72,11 @@ Return strictly a JSON dictionary featuring the following keys. Do not guess val
     if not pet_name:
         return f"Which pet is this schedule adjustment intended for ({', '.join(pet_names)})?"
         
+    if not title or title.lower() in ["task", "null"]:
+        return f"I can definitely set that up for {pet_name}. What specific activity or task are we scheduling?"
+        
     if not scheduled_time:
-        tentative_title = extracted_data.get("title", "task")
+        tentative_title = title or "task"
         return f"I can certainly organize that {tentative_title} for {pet_name}. What specific time should the schedule reflect?"
         
     # Verify exact pet linkage matching
@@ -92,12 +96,10 @@ Return strictly a JSON dictionary featuring the following keys. Do not guess val
         notes="Generated seamlessly via Conversational UI Hub"
     )
     
-    matching_pet.add_task(new_task)
-    
-    try:
-        save_data(owner)
-    except Exception as e:
-        logger.error(f"[ai/tools] Database commit failed on task generation: {e}")
-        return "An internal database conflict occurred while saving the schedule."
-        
-    return f"Successfully locked in: {new_task.title} for {matching_pet.name} at {new_task.scheduled_time}."
+    # Return purely an isolated validation dictionary structure to enforce front-end intercept logic
+    return {
+        "type": "task_confirmation",
+        "message": f"Does this {new_task.title} for {matching_pet.name} at {new_task.scheduled_time} look accurate to schedule?",
+        "task_preview": new_task,
+        "pet_name": matching_pet.name
+    }

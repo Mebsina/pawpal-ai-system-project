@@ -47,16 +47,20 @@ def classify_and_route(user_input: str, chat_history: list = None):
         logger.info(f"[ai/router] System structurally intercepted via Active Context State Lock: {intent}")
     else:
         system_prompt = """Classify the following user input into strictly ONE of the categories below:
-- ADD_TASK: The user wants to schedule a specific NEW care event (e.g. 'walk Mochi at 2pm').
-- ADD_PET: The user wants to register a brand NEW pet (e.g. 'add a 2 year old cat').
-- REMOVE_PET: The user wants to delete, remove, say goodbye to, or rehome an existing pet (e.g. 'remove Mochi', 'delete Kiki').
-- CHECK_SCHEDULE: The user wants to VIEW their CURRENTLY scheduled tasks for today. (e.g. 'what is my plan?', 'show my schedule', 'today task', 'what are my tasks?').
-- SUGGEST_SCHEDULE: The user wants the AI to ANALYZE data and PROPOSE new things to do. (e.g. 'what should I schedule?', 'what do my pets need?', 'give me a plan base on history').
-- LIST_PETS: The user explicitly wants to see a list of their pets. (e.g., 'what pets do I have?', 'show my animals', 'list pets').
-- PET_INSIGHTS: The user is asking for analytics, history, or how often they completed tasks.
-- CHECK_ALERTS: The user asks for alerts, warnings, or if they missed anything.
-- HELP_MENU: The user explicitly types 'menu', requests help, asks what you can do, or asks for options.
+- ADD_TASK: The user wants to schedule a specific NEW care event, routine, or activity (e.g., 'Schedule a task for my pet', 'walk Mochi at 2pm', 'add a feeding task'). Keywords: schedule, task, activity, routine, walk, feed, meds.
+- ADD_PET: The user wants to register a brand NEW pet profile (e.g., 'add a 2 year old cat', 'register a new dog', 'new pet named Bella'). Keywords: new pet, register, add pet, profile.
+- REMOVE_PET: The user wants to delete, remove, say goodbye to, or rehome an existing pet profile. Keywords: remove, delete, rehome, say goodbye.
+- CHECK_SCHEDULE: The user wants to VIEW their existing scheduled tasks for today (e.g., 'what is my plan?', 'show my schedule', 'today task'). Keywords: plan, schedule, today, view.
+- SUGGEST_SCHEDULE: The user wants the AI to ANALYZE data and PROPOSE new things to do. Keywords: suggest, analyze, what should I, recommend.
+- LIST_PETS: The user explicitly wants to see a list of their current pets. Keywords: list pets, what pets, show animals.
+- PET_INSIGHTS: The user is asking for analytics or history data.
+- CHECK_ALERTS: The user asks for warnings or missed tasks.
+- HELP_MENU: The user wants help or options.
 - GENERAL_CHAT: The user is saying hello or asking conversational questions.
+
+CRITICAL DISAMBIGUATION:
+1. 'Schedule a task' or 'Add a task' MUST always be ADD_TASK, never ADD_PET.
+2. 'Add a pet' is for registration only. If they mention an action (walk/feed), it is ADD_TASK.
 
 CRITICAL RULE: You MUST classify the intent of the VERY LAST MESSAGE in the sequence. Previous messages are ONLY context. 
 Return absolutely nothing but the exact category string."""

@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import time as dtime
-from pawpal_system import Pet, Task, Scheduler, save_data, load_data
+from datetime import date as ddate
+from pawpal_system import Pet, Task, Scheduler, save_data, load_data, PRIORITY_ORDER
 from ai.router import classify_and_route
 import streamlit.components.v1 as components
 
@@ -190,7 +191,6 @@ else:
         if sort_by == "Time":
             displayed = sorted(displayed, key=lambda pt: pt[1].scheduled_time)
         elif sort_by == "Priority (high first)":
-            from pawpal_system import PRIORITY_ORDER
             displayed = sorted(displayed, key=lambda pt: -PRIORITY_ORDER[pt[1].priority])
         else:
             displayed = sorted(displayed, key=lambda pt: pt[1].duration_minutes)
@@ -266,7 +266,9 @@ if st.button("Generate Today Plan"):
     else:
         scheduler = Scheduler(owner=owner)
         pet_name_filter = None if selected_pet_filter == "All Pets" else selected_pet_filter
-        all_filtered = scheduler.filter_tasks(pet_name=pet_name_filter, status=selected_status_filter)
+        today_date = ddate.today().isoformat()
+        
+        all_filtered = scheduler.filter_tasks(pet_name=pet_name_filter, status=selected_status_filter, target_date=today_date)
         incomplete = [t for t in all_filtered if not t.completion_status]
         completed = [t for t in all_filtered if t.completion_status]
 
@@ -342,6 +344,7 @@ def sel_menu_cb(opt):
 
 def menu_btn_cb(opt):
     st.session_state.active_intent = None
+    st.session_state.pending_action = None
     st.session_state.user_prompt_override = opt
 
 def render_quick_menu(use_full_width=True):
@@ -384,10 +387,11 @@ def ai_chat_dialog():
                 with st.spinner("Responding..."):
                     raw_response = classify_and_route(user_prompt, st.session_state.chat_history)
                     
-                    if isinstance(raw_response, dict) and raw_response.get("type") in ["task_confirmation", "selection_menu", "show_quick_menu"]:
+                    if isinstance(raw_response, dict) and raw_response.get("type") in ["task_confirmation", "selection_menu", "show_quick_menu", "show_schedule_table"]:
                         st.session_state.pending_action = raw_response
                         response_text = raw_response["message"]
                     else:
+                        st.session_state.pending_action = None
                         response_text = raw_response
                         
                 st.markdown(response_text)
@@ -410,6 +414,31 @@ def ai_chat_dialog():
                 for opt in action["options"]:
                     st.button(opt, use_container_width=True, on_click=sel_menu_cb, args=(opt,))
             elif action["type"] == "show_quick_menu":
+                render_quick_menu(use_full_width=True)
+            elif action["type"] == "show_schedule_table":
+                # Execute native data drawing sequentially securely mirroring the main dashboard topology
+                scheduler = Scheduler(owner=owner)
+                today_date = ddate.today().isoformat()
+                
+                all_filtered = scheduler.filter_tasks(status=False, target_date=today_date)
+                schedule = scheduler.generate_plan(tasks=all_filtered)
+                
+                if not all_filtered:
+                    st.info("Your schedule is completely clear! Is there anything you'd like to add?")
+                else:
+                    task_pet = {id(t): pet.name for pet in owner.pets for t in pet.tasks}
+                    def task_row(t):
+                        return { "Pet": task_pet.get(id(t), "-"), "Task Title": t.title, "Time": t.scheduled_time, "Duration (min)": t.duration_minutes, "Priority": PRIORITY_EMOJI.get(t.priority, t.priority) }
+
+                    if schedule.tasks:
+                        st.markdown("**Scheduled:**")
+                        sorted_scheduled = scheduler.sort_by_time(schedule.tasks)
+                        st.table([task_row(t) for t in sorted_scheduled])
+                    if schedule.unscheduled:
+                        st.error(f"{len(schedule.unscheduled)} task(s) could not fit in your {owner.available_minutes}-minute active time budget.")
+                        st.table([task_row(t) for t in schedule.unscheduled])
+                
+                st.write("Is there anything else you would like to do?")
                 render_quick_menu(use_full_width=True)
 
 

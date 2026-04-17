@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta, datetime
 
@@ -265,7 +266,6 @@ class Scheduler:
             ["CONFLICT at 09:00 — Litter box (Luna), Feeding (Mochi)"]
             Empty list means no conflicts were found.
         """
-        from collections import defaultdict
 
         # Build a dict: time_slot -> [(pet_name, task_title), ...]
         slots: dict[str, list[str]] = defaultdict(list)

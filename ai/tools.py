@@ -81,13 +81,13 @@ Return strictly a JSON dictionary featuring the following keys. Do not guess val
     if not matching_pet:
         return f"The profile '{pet_name}' is not currently registered. Valid options are: {', '.join(pet_names)}."
         
-    # Standard DB Object Generation
+    # Standard DB Object Generation securely catching explicit null injection
     new_task = Task(
-        title=extracted_data.get("title", "Task"),
-        duration_minutes=extracted_data.get("duration_minutes", 15),
-        priority=extracted_data.get("priority", "medium"),
-        category=extracted_data.get("category", "walk"),
-        frequency=extracted_data.get("frequency", "once"),
+        title=extracted_data.get("title") or "Task",
+        duration_minutes=int(extracted_data.get("duration_minutes") or 15),
+        priority=extracted_data.get("priority") or "medium",
+        category=extracted_data.get("category") or "walk",
+        frequency=extracted_data.get("frequency") or "once",
         scheduled_time=scheduled_time,
         notes="Generated seamlessly via Conversational UI Hub"
     )

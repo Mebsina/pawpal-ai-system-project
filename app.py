@@ -149,6 +149,14 @@ else:
             save_data(owner)
             st.success(f"'{task_title}' added at {scheduled_time}.")
 
+    # Real-time data sanitization loop to surgically repair any corrupted saved states
+    for pet in owner.pets:
+        for t in pet.tasks:
+            t.priority = t.priority or "medium"
+            t.duration_minutes = t.duration_minutes or 15
+            t.category = t.category or "walk"
+            t.title = t.title or "Task"
+
     # All tasks across every pet, with a reference to which pet owns each one
     all_tasks_with_pet = [(pet, t) for pet in owner.pets for t in pet.tasks]
 

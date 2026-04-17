@@ -45,7 +45,7 @@ PawPal+ uses a lightweight layered architecture wrapped smoothly around a Unifie
 |-------|---------|---------------|
 | Configuration | `config.py` | Centralized system instructions, pet care guidelines, and LLM properties |
 | View + Controller | `app.py` | Streamlit asynchronous streaming chat interface, batch plan confirmation UI |
-| AI Service Layer | `ai/router.py`, `ai/tools.py`, `ai/utils.py` | Intent parsing, zero-temperature grounding, tool interactions, and markdown sanitization |
+| AI Service Layer | `ai/router.py`, `ai/tools/`, `ai/utils.py` | Intent parsing, zero-temperature grounding, tool interactions, and markdown sanitization |
 | Core / Model | `pawpal_system.py` | Data model, scheduler, AnalyticsEngine (anomaly detection), conflict detection, persistence |
 | Data Layer | `history.py`, `data/pawpal_data.json` | JSON persistence, completion history, analytics |
 

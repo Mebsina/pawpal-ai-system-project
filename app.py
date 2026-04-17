@@ -1,8 +1,11 @@
+import logging
 import streamlit as st
 from datetime import time as dtime
 from datetime import date as ddate
 from core import Pet, Task, Scheduler, save_data, load_data, CompletionRecord
 from config import PRIORITY_ORDER
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(name)s | %(message)s")
 from ai.router import classify_and_route
 from itertools import groupby
 from datetime import datetime
@@ -379,18 +382,27 @@ def confirm_plan_cb(owner_ref, suggestions):
     for s in suggestions:
         pet = next((p for p in owner_ref.pets if p.name == s["pet_name"]), None)
         if pet:
-            new_task = Task(
-                title=s["title"],
-                duration_minutes=s["duration_minutes"],
-                priority=s["priority"],
-                category=s["category"],
-                frequency=s["frequency"],
-                scheduled_time=s["scheduled_time"],
-                due_date=s["due_date"],
-                notes="Proactively suggested by PawPal AI"
+            # Final Defensive Check: Ensure this exact task isn't already in the database
+            is_dupe = any(
+                t.title.lower() == s["title"].lower() and 
+                t.scheduled_time == s["scheduled_time"] and
+                t.due_date == s.get("due_date", ddate.today().isoformat())
+                for t in pet.tasks
             )
-            pet.add_task(new_task)
-            count += 1
+            
+            if not is_dupe:
+                new_task = Task(
+                    title=s["title"],
+                    duration_minutes=s["duration_minutes"],
+                    priority=s["priority"],
+                    category=s["category"],
+                    frequency=s["frequency"],
+                    scheduled_time=s["scheduled_time"],
+                    due_date=s.get("due_date", ddate.today().isoformat()),
+                    notes="Proactively suggested by PawPal AI"
+                )
+                pet.add_task(new_task)
+                count += 1
     
     save_data(owner_ref)
     st.session_state.pending_action = None
@@ -515,8 +527,14 @@ def ai_chat_dialog():
 
             elif action["type"] == "plan_suggestion":
                 suggestions = action["suggestions"]
-                for s in suggestions:
-                    st.markdown(f"- **{s['title']}** for **{s['pet_name']}** @ {s['scheduled_time']} ({s['duration_minutes']}m)")
+                # Group by pet, sorted by time within each group
+                from itertools import groupby
+                sorted_suggestions = sorted(suggestions, key=lambda s: (s["pet_name"], s.get("scheduled_time", "00:00")))
+                for pet_name, group in groupby(sorted_suggestions, key=lambda s: s["pet_name"]):
+                    st.markdown(f"### {pet_name}")
+                    for s in group:
+                        dur = s.get('duration_minutes', 0)
+                        st.markdown(f"`{s['scheduled_time']}` — {s['title']}  {dur}m")
                 
                 confirm_col1, confirm_col2 = st.columns(2)
                 with confirm_col1:

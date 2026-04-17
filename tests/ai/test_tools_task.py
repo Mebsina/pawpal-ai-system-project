@@ -10,6 +10,14 @@ from ai.tools.add_task import add_task_tool
 from ai.tools.check_schedule import check_schedule_tool
 from core.models import Task
 
+# ---------------------------------------------------------------------------
+# AI Task Tools
+# Test: add task tool success extraction
+# Test: add task tool missing pet selection
+# Test: add task tool schedule conflict detection
+# Test: check schedule tool summary table
+# ---------------------------------------------------------------------------
+
 def test_add_task_tool_success(mock_persistence, mock_ollama, mock_owner):
     """Ensure valid AI extraction results in a task confirmation."""
     json_output = '```json\n{"title": "Walk", "pet_name": "Mochi", "duration_minutes": 30, "scheduled_time": "14:00", "due_date": "2026-04-17"}\n```'

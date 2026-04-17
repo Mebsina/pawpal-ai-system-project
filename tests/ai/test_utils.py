@@ -5,6 +5,13 @@ Validates the JSON sanitization capacities against varied LLM responses.
 
 from ai.utils import extract_json
 
+# ---------------------------------------------------------------------------
+# AI Utilities: JSON Sanitization
+# Test: extract json from clean markdown
+# Test: extract json from raw bracketed input
+# Test: extract json fails gracefully on garbage
+# ---------------------------------------------------------------------------
+
 def test_extract_json_with_clean_markdown():
     """Ensure standard markdown blocks correctly resolve to python structures."""
     payload = "Here is the output:\n```json\n{\"time\": \"14:00\", \"pet\": \"Mochi\"}\n```\nHope this helps!"

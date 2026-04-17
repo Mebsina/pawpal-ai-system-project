@@ -2,6 +2,8 @@ from core import Task, Pet
 
 # ---------------------------------------------------------------------------
 # Data model integrity
+# Test: mark task complete changes status
+# Test: adding task increases pet task count
 # ---------------------------------------------------------------------------
 
 def test_mark_complete_changes_status():

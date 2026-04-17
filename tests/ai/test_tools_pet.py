@@ -9,6 +9,15 @@ from ai.tools.add_pet import add_pet_tool
 from ai.tools.remove_pet import remove_pet_tool
 from ai.tools.list_pets import list_pets_tool
 
+# ---------------------------------------------------------------------------
+# AI Pet Management Tools
+# Test: add pet tool success path
+# Test: add pet tool missing age follow-up
+# Test: remove pet tool direct name match
+# Test: remove pet tool natural language fallback
+# Test: list pets tool summary generation
+# ---------------------------------------------------------------------------
+
 def test_add_pet_tool_success(mock_persistence, mock_ollama, mock_owner):
     """Ensure valid AI extraction results in a pet add confirmation."""
     json_output = '{"name": "Bella", "species": "dog", "age": 2, "special_needs": ["none"]}'

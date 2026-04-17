@@ -3,6 +3,8 @@ from core import Owner, Pet, Task, CompletionRecord, AnalyticsEngine
 
 # ---------------------------------------------------------------------------
 # Analytics Engine
+# Test: recent history within day range
+# Test: unusual patterns for overdue tasks
 # ---------------------------------------------------------------------------
 
 def test_analytics_get_recent_history():

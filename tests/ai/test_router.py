@@ -7,6 +7,14 @@ import pytest
 from unittest.mock import patch, MagicMock
 from ai.router import classify_and_route
 
+# ---------------------------------------------------------------------------
+# AI Intent Routing
+# Test: escape keywords release intent locks
+# Test: active intent locks bypass classification
+# Test: valid classification routes to specific tools
+# Test: unknown inputs use conversational fallback
+# ---------------------------------------------------------------------------
+
 def test_router_escape_keywords(mock_session_state):
     """Ensure escape keywords release intent locks immediately."""
     # Use the session_state mock to set active_intent

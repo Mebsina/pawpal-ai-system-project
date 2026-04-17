@@ -5,6 +5,7 @@ import core.persistence
 
 # ---------------------------------------------------------------------------
 # Data Persistence
+# Test: save/load round-trip preserves state
 # ---------------------------------------------------------------------------
 
 def test_save_load_round_trip():

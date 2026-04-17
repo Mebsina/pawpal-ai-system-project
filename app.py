@@ -351,7 +351,6 @@ def render_quick_menu(use_full_width=True):
     """Abstracts the core quick actions into a reusable DRY rendering container."""
     st.button("📅 Check Plan", use_container_width=use_full_width, on_click=menu_btn_cb, args=("What's on my plan for today?",))
     st.button("🦮 Schedule Task", use_container_width=use_full_width, on_click=menu_btn_cb, args=("Schedule a task for my pet",))
-    st.button("❓ User Guide", use_container_width=use_full_width, on_click=menu_btn_cb, args=("What can you help me with?",))
 
 @st.dialog("🐾 PawPal AI Assistant", width="small")
 def ai_chat_dialog():

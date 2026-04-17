@@ -16,7 +16,7 @@ PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It 
 ## AI Features
 - **Floating Conversational Hub**: Access the Llama AI instantly through a persistent action button without losing visibility of your manual dashboard.
 - **Dynamic Intent Routing**: The `router.py` parses user intent organically and routes it internally with multi-turn "Context Locking".
-- **Smart Scheduler & Predictive Alerts**: Proactively scans behavioral history to identify gaps and suggests a 'Smart Plan' based on species-specific guidelines.
+- **Smart Scheduler & Predictive Alerts**: Proactively scans behavioral history to identify gaps and suggests a 'Smart Plan' based on species-specific guidelines. Uses an agentic multi-turn loop (up to 5 refinement turns) with confidence scoring (target 0.9+), strict HH:MM time validation, per-pet baseline care enforcement (feeding + activity), same-category proximity checks, and daily time-budget awareness. Results are displayed grouped by pet in a chronological timeline.
 - **Contextual Knowledge Base**: Seeded with industry-standard care (Dogs: 30m walk/2x feeding; Cats: play/grooming) to ground AI advice in best practices.
 - **Conversational Pet Management**: Add, remove, or list pets using natural language. Features strict user-confirmation guardrails for any data-altering actions.
 - **JSON Output Sanitization**: Integrated regex-based filtering strictly isolates python dictionaries from LLM conversational filler.
@@ -79,7 +79,7 @@ AI features require Ollama to be running. The app works without it but NL task c
 | **NL Task Creation** | "Schedule a 20min feeding for Mochi at 8am" | "Please verify this schedule: **Feeding** for **Mochi** at 08:00... Does this look accurate?" |
 | **Manage Pets** | "Add a 2 year old cat named Snow" | "I've prepared the profile for **Snow**! ... Should I add them to your family?" |
 | **List Pets** | "Which pets do I have?" | "- 🐶 **Mochi**: 3-year-old dog. (Special needs: None)..." |
-| **Proactive Planner** | "What should I schedule?" | "Mochi hasn't had a walk today... I suggest adding a 30min walk at 14:00." |
+| **Proactive Planner** | "What should I schedule?" | "Here is your smart plan: 10 task(s) for 3 pet(s)." grouped by pet with timeline (`08:00` - Morning Walk  30m) |
 | **Predictive Alert** | "Check alerts" | "Everything looks on track! / I noticed Mochi is missing their daily walk. Should we schedule one?" |
 | **Escape Action** | "Nevermind" | *Breaks active intent lock and returns to main menu context.* |
 
@@ -91,32 +91,33 @@ AI features require Ollama to be running. The app works without it but NL task c
 | Central Configuration | `config.py` overrides `.env` | Eliminates extra dependencies/keys | Adjusting core configurations touches runtime variables |
 | Missing Data Logic | Conversational AI interception | Prevents guessing or hard error locks | Requires an additional round trip to LLM |
 | JSON Sanitization | Regular Expression Strippers | Highly resilient to varied LLM boilerplate | Complex formatting anomalies may occasionally penetrate |
+| Schedule validation | Programmatic post-processing over prompt-only enforcement | Deterministic gap/budget/time checks regardless of LLM quality | Additional code complexity in validation loop |
 | Testing AI components | Mock Router responses | Fast, repeatable, removes Ollama from standard test runner checks | Cannot emulate pure hallucination boundaries |
 
 ## Testing Summary
 
 ### Core System Tests
-- **Automated tests**: 28 tests passing (`python -m pytest tests/core/`). Validated areas include:
+- **Automated tests**: 25 tests passing (`python -m pytest tests/core/`). Validated areas include:
     - **Models**: `Task.mark_complete`, `Pet.add_task`, `Owner.add_pet`.
     - **Scheduler**: `generate_plan`, `detect_time_conflicts`, `reschedule_if_recurring`, `filter_tasks`.
     - **AnalyticsEngine**: `get_unusual_patterns`, `get_recent_history`.
     - **Persistence**: `save_data` and `load_data` (via `core/persistence.py`).
 
 ### AI Service Layer Tests
-- **Automated tests**: 13 comprehensive mock-driven tests implemented in `tests/ai/`. Validated areas include:
+- **Automated tests**: 18 comprehensive mock-driven tests implemented in `tests/ai/`. Validated areas include:
     - **Intent Routing**: Verification of `router.py` classification and escape/lock logic.
     - **Task Extraction**: Multi-parameter parsing and conflict detection within AI tools.
     - **Pet Management**: Conversational Add/Remove/List logic validation with user guardrails.
     - **Output Sanitization**: Robust JSON extraction from varied LLM response formats.
 - **Infrastructure**: Uses `unittest.mock` and a synchronized `SessionState` fixture in `conftest.py` to isolate tests from local Ollama and Streamlit states.
-- **Confidence Scoring**: Intent routing and data extraction modules now rate their certainty (0.0 to 1.0), recorded in system logs for quantifiable reliability auditing.
-- **Documentation Standard**: All 41 test cases (Core + AI) feature standardized header documentation for improved auditability.
+- **Confidence Scoring**: Intent routing and data extraction modules now rate their certainty (0.0 to 1.0), recorded in system logs for quantifiable reliability auditing. The Smart Scheduler uses confidence as a loop-exit condition (target 0.9+), refining suggestions across up to 5 agentic turns until quality thresholds are met.
+- **Documentation Standard**: All 43 test cases (Core + AI) feature standardized header documentation for improved auditability.
 
 - **Proactive Anomaly Detection**: `AnalyticsEngine` successfully identifies missed recurring tasks and triggers conversational alerts.
 - **Batch Plan Execution**: The AI assistant can process multiple pet requirements simultaneously and apply updates via batch updates upon confirmation.
 - **Human evaluation**: Manually verified that "Smart Plan" suggestions respect species guidelines and historical patterns.
 
-*Summary: A total of **41 out of 41 tests** are passing. The AI service layer is fully isolated and verified via robust mocking for deterministic execution.*
+*Summary: A total of **43 out of 43 tests** are passing. The AI service layer is fully isolated and verified via robust mocking for deterministic execution.*
 
 ## Reflection
 

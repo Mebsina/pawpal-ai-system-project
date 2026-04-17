@@ -224,17 +224,22 @@ class Scheduler:
                     task_to_pet[id(t)] = pet.name
             for t in tasks:
                 pet_name = task_to_pet.get(id(t), "Unknown")
-                slots[t.scheduled_time].append(f"{t.title} ({pet_name})")
+                slots[t.scheduled_time].append(f"{t.title} for {pet_name}")
         else:
             for pet in self.owner.pets:
                 for t in pet.tasks:
-                    slots[t.scheduled_time].append(f"{t.title} ({pet.name})")
+                    slots[t.scheduled_time].append(f"{t.title} for {pet.name}")
 
         warnings = []
         for time_slot, entries in sorted(slots.items()):
             if len(entries) > 1:
+                if len(entries) == 2:
+                    joined_entries = f"'{entries[0]}' and '{entries[1]}'"
+                else:
+                    joined_entries = ", ".join([f"'{e}'" for e in entries[:-1]]) + f", and '{entries[-1]}'"
+                
                 warnings.append(
-                    f"CONFLICT at {time_slot} — {', '.join(entries)}"
+                    f"a scheduling overlap exactly at {time_slot} between {joined_entries}"
                 )
         return warnings
 

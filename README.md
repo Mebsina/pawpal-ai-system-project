@@ -96,26 +96,26 @@ AI features require Ollama to be running. The app works without it but NL task c
 ## Testing Summary
 
 ### Core System Tests
-- **Automated tests**: 28 tests passing (`pytest tests/core/`). Validated areas include:
+- **Automated tests**: 28 tests passing (`python -m pytest tests/core/`). Validated areas include:
     - **Models**: `Task.mark_complete`, `Pet.add_task`, `Owner.add_pet`.
     - **Scheduler**: `generate_plan`, `detect_time_conflicts`, `reschedule_if_recurring`, `filter_tasks`.
     - **AnalyticsEngine**: `get_unusual_patterns`, `get_recent_history`.
     - **Persistence**: `save_data` and `load_data` (via `core/persistence.py`).
 
 ### AI Service Layer Tests
-- **Automated tests**: Comprehensive mock-driven suite implemented in `tests/ai/`. Validated areas include:
-    - **Intent Routing**: Verification of `router.py` classification and context locking logic.
+- **Automated tests**: 13 comprehensive mock-driven tests implemented in `tests/ai/`. Validated areas include:
+    - **Intent Routing**: Verification of `router.py` classification and escape/lock logic.
     - **Task Extraction**: Multi-parameter parsing and conflict detection within AI tools.
     - **Pet Management**: Conversational Add/Remove/List logic validation with user guardrails.
     - **Output Sanitization**: Robust JSON extraction from varied LLM response formats.
-- **Infrastructure**: Uses `unittest.mock` to isolate tests from local Ollama and Streamlit session states for deterministic execution.
-- **Integration Testing**: Provided `scratch/test_real_ai.py` utility for checking local model connectivity and response quality.
+- **Infrastructure**: Uses `unittest.mock` and a synchronized `SessionState` fixture in `conftest.py` to isolate tests from local Ollama and Streamlit states.
+- **Documentation Standard**: All 41 test cases (Core + AI) feature standardized header documentation for improved auditability.
 
 - **Proactive Anomaly Detection**: `AnalyticsEngine` successfully identifies missed recurring tasks and triggers conversational alerts.
-- **Batch Plan Execution**: The AI assistant can process multiple pet requirements simultaneously and apply batch updates to the schedule upon user confirmation.
-- **Human evaluation**: Manually verified that "Smart Plan" suggestions respect species guidelines and historical completion patterns.
+- **Batch Plan Execution**: The AI assistant can process multiple pet requirements simultaneously and apply updates via batch updates upon confirmation.
+- **Human evaluation**: Manually verified that "Smart Plan" suggestions respect species guidelines and historical patterns.
 
-*Summary: Both the core logic and the AI service layer are robustly tested using a combination of unit tests and mock-driven service verification.*
+*Summary: A total of **41 out of 41 tests** are passing. The AI service layer is fully isolated and verified via robust mocking for deterministic execution.*
 
 ## Reflection
 

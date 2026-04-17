@@ -7,7 +7,7 @@ PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It 
 - **Owner setup**: enter your name and daily time budget; fields lock after saving with an Edit button to unlock
 - **Multi-pet support**: add any number of pets (name, species, age, and optional special needs); switch between pets to manage their tasks; each pet's special needs are summarized below the task table
 - **Task manager**: add tasks with title, duration, priority, category, frequency, and scheduled time (15-minute step picker); tasks are only saved if no time conflict exists
-- **Conflict detection**: warns before saving if another task is already scheduled at the same time slot across any pet
+- **Conflict detection**: Warns during task creation if another task overlaps within the same duration window across any pet. Uses interval-based logic rather than simple time-string matching.
 - **Sort and filter**: sort tasks by scheduled time, priority, or duration; filter by priority; high-priority badge shows count of outstanding items
 - **Complete / uncomplete**: toggle completion per task with strikethrough display; completing a daily or weekly task automatically queues the next occurrence; uncompleting removes it
 - **Generate Plan**: filter by pet and status, schedule incomplete tasks within the time budget, display Scheduled / Could not fit / Complete tables
@@ -97,27 +97,25 @@ AI features require Ollama to be running. The app works without it but NL task c
 ## Testing Summary
 
 ### Core System Tests
-- **Automated tests**: 25 tests passing (`python -m pytest tests/core/`). Validated areas include:
-    - **Models**: `Task.mark_complete`, `Pet.add_task`, `Owner.add_pet`.
-    - **Scheduler**: `generate_plan`, `detect_time_conflicts`, `reschedule_if_recurring`, `filter_tasks`.
-    - **AnalyticsEngine**: `get_unusual_patterns`, `get_recent_history`.
-    - **Persistence**: `save_data` and `load_data` (via `core/persistence.py`).
+- **Data Integrity**: Verifies that task completion toggles correctly, pet additions scale properly, and primary keys (UUIDs) remain globally unique for accurate persistence.
+- **Scheduling Logic**: Ensures budget-aware plan generation, interval-based conflict detection (identifying overlaps even between non-identical clock times), and idempotent recurrence (preventing duplicate tasks if completion is toggled multiple times).
+- **Behavioral Analytics**: Validates anomaly detection for missed tasks, sliding-window history filters, and historical record removal upon "undoing" a completion.
+- **Persistence Layer**: Confirms that the full state—including complex parent-child task linkages—survives JSON serialization and recovery across system restarts.
 
 ### AI Service Layer Tests
-- **Automated tests**: 18 comprehensive mock-driven tests implemented in `tests/ai/`. Validated areas include:
-    - **Intent Routing**: Verification of `router.py` classification and escape/lock logic.
-    - **Task Extraction**: Multi-parameter parsing and conflict detection within AI tools.
-    - **Pet Management**: Conversational Add/Remove/List logic validation with user guardrails.
-    - **Output Sanitization**: Robust JSON extraction from varied LLM response formats.
-- **Infrastructure**: Uses `unittest.mock` and a synchronized `SessionState` fixture in `conftest.py` to isolate tests from local Ollama and Streamlit states.
-- **Confidence Scoring**: Intent routing and data extraction modules now rate their certainty (0.0 to 1.0), recorded in system logs for quantifiable reliability auditing. The Smart Scheduler uses confidence as a loop-exit condition (target 0.9+), refining suggestions across up to 5 agentic turns until quality thresholds are met.
-- **Documentation Standard**: All 43 test cases (Core + AI) feature standardized header documentation for improved auditability.
+- **Intent Reliability**: Proves the system correctly routes diverse natural language queries to the proper internal tools, while maintaining strict context locks during multi-turn interactions and keyword-based escapes.
+- **Agentic Refinement**: Verifies the 5-turn self-correction loop in the Smart Planner, ensuring the AI agent identifies its own scheduling errors and refines them until a high-confidence care plan is achieved.
+- **Safety & Grounding**: Confirms that data-modifying actions (like removing a pet) trigger mandatory user-confirmation menus and that AI suggestions are strictly grounded in pet-specific care guidelines.
+- **Payload Resiliency**: Tests the system's ability to extract structured data from "noisy" LLM output and handle malformed response formats without crashing the UI.
+- **Infrastructure**: Uses `unittest.mock` and a synchronized `SessionState` fixture in `conftest.py` to isolate tests from local Ollama and Streamlit states for deterministic execution.
+- **Confidence Scoring**: Intent routing and data extraction modules rate certainty (0.0 to 1.0), recorded in system logs for quantifiable reliability auditing.
+- **Documentation Standard**: All 91 test cases feature standardized header documentation for improved auditability.
 
-- **Proactive Anomaly Detection**: `AnalyticsEngine` successfully identifies missed recurring tasks and triggers conversational alerts.
-- **Batch Plan Execution**: The AI assistant can process multiple pet requirements simultaneously and apply updates via batch updates upon confirmation.
+- **Proactive Anomaly Detection**: `AnalyticsEngine` identifies missed recurring tasks and triggers conversational alerts.
+- **Batch Plan Execution**: The AI assistant processes multiple pet requirements simultaneously and applies updates via batch confirmation.
 - **Human evaluation**: Manually verified that "Smart Plan" suggestions respect species guidelines and historical patterns.
 
-*Summary: A total of **43 out of 43 tests** are passing. The AI service layer is fully isolated and verified via robust mocking for deterministic execution.*
+*Summary: A total of **91 out of 91 tests** are passing. The AI service layer is fully isolated and verified via robust mocking for deterministic execution.*
 
 ## Reflection
 

@@ -1,0 +1,272 @@
+import pytest
+import json
+from unittest.mock import MagicMock, patch
+from ai.tools.suggest_schedule import suggest_schedule_tool
+
+# ---------------------------------------------------------------------------
+# Smart Scheduler Agentic Tool
+# Test: happy path timeline generation
+# Test: multi-turn agentic feedback loop
+# Test: baseline pet care enforcement (feed/walk)
+# Test: Ollama service error handling
+# ---------------------------------------------------------------------------
+
+@pytest.mark.usefixtures("mock_persistence")
+def test_suggest_schedule_happy_path(mock_ollama, mock_owner):
+    """Verifies structured timeline generation from valid LLM response."""
+    mock_response = {
+        "summary": "Here is a great plan for Mochi!",
+        "suggestions": [
+            {
+                "pet_name": "Mochi",
+                "title": "Morning Walk",
+                "scheduled_time": "08:00",
+                "duration_minutes": 30,
+                "priority": "high",
+                "category": "exercise",
+                "frequency": "daily"
+            },
+            {
+                "pet_name": "Mochi",
+                "title": "Breakfast",
+                "scheduled_time": "08:30",
+                "duration_minutes": 15,
+                "priority": "high",
+                "category": "feeding",
+                "frequency": "daily"
+            }
+        ],
+        "confidence": 0.95
+    }
+    
+    mock_ollama.return_value = mock_ollama.response_class(json.dumps(mock_response))
+    
+    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
+        result = suggest_schedule_tool("Help me plan today")
+    
+    assert isinstance(result, dict)
+    assert result["type"] == "plan_suggestion"
+    assert len(result["suggestions"]) == 2
+    assert result["suggestions"][0]["pet_name"] == "Mochi"
+    assert result["suggestions"][0]["scheduled_time"] == "08:00"
+
+@pytest.mark.usefixtures("mock_persistence")
+def test_suggest_schedule_agentic_feedback_loop(mock_ollama, mock_owner):
+    """Tests multi-turn feedback where Turn 1 has a conflict and Turn 2 resolves it."""
+    # Turn 1: Low confidence or issues
+    response_1 = {
+        "summary": "Draft 1",
+        "suggestions": [
+            {"pet_name": "Mochi", "title": "Conflict Task", "scheduled_time": "08:00", "duration_minutes": 10, "category": "feeding"}
+        ],
+        "confidence": 0.5
+    }
+    
+    # Turn 2: Resolved
+    response_2 = {
+        "summary": "Draft 2",
+        "suggestions": [
+            {"pet_name": "Mochi", "title": "Resolved Task", "scheduled_time": "09:00", "duration_minutes": 10, "category": "feeding"},
+            {"pet_name": "Mochi", "title": "Second Task", "scheduled_time": "11:00", "duration_minutes": 10, "category": "exercise"}
+        ],
+        "confidence": 0.95
+    }
+    
+    mock_ollama.side_effect = [
+        mock_ollama.response_class(json.dumps(response_1)),
+        mock_ollama.response_class(json.dumps(response_2))
+    ]
+    
+    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
+        result = suggest_schedule_tool("Plan something")
+    
+    assert mock_ollama.call_count == 2
+    assert isinstance(result, dict)
+    assert result["suggestions"][0]["scheduled_time"] == "09:00"
+
+@pytest.mark.usefixtures("mock_persistence")
+def test_suggest_schedule_enforces_baseline_care(mock_ollama, mock_owner):
+    """Verifies that the tool identifies gaps (e.g., missing feeding) and re-prompts with GAP feedback."""
+    # LLM fails to provide feeding on first turn
+    response_1 = {
+        "summary": "No food here",
+        "suggestions": [
+            {"pet_name": "Mochi", "title": "Just a walk", "scheduled_time": "08:00", "duration_minutes": 20, "category": "exercise"}
+        ],
+        "confidence": 0.95
+    }
+    
+    # Second turn fixed by LLM after feedback
+    response_2 = {
+        "summary": "Added food",
+        "suggestions": [
+            {"pet_name": "Mochi", "title": "Just a walk", "scheduled_time": "08:00", "duration_minutes": 20, "category": "exercise"},
+            {"pet_name": "Mochi", "title": "Breakfast", "scheduled_time": "09:00", "duration_minutes": 10, "category": "feeding"}
+        ],
+        "confidence": 0.95
+    }
+    
+    mock_ollama.side_effect = [
+        mock_ollama.response_class(json.dumps(response_1)),
+        mock_ollama.response_class(json.dumps(response_2))
+    ]
+    
+    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
+        result = suggest_schedule_tool("I need a plan")
+    
+    assert mock_ollama.call_count == 2
+    
+    # Inspect the second call's messages to verify the GAP feedback was sent
+    second_call_messages = mock_ollama.call_args_list[1][1]["messages"]
+    feedback_message = second_call_messages[-1]["content"]
+    assert "GAP:" in feedback_message
+    assert "feeding" in feedback_message.lower()
+    
+    assert any(s["category"] == "feeding" for s in result["suggestions"])
+
+
+@pytest.mark.usefixtures("mock_persistence")
+def test_suggest_schedule_ollama_error_handling(mock_ollama):
+    """Graceful degradation if Ollama fails."""
+    mock_ollama.side_effect = Exception("Ollama is down")
+    
+    result = suggest_schedule_tool("Help")
+    
+    assert "error while refining" in result
+
+@pytest.mark.usefixtures("mock_persistence")
+def test_suggest_schedule_confidence_threshold_exits_early(mock_ollama, mock_owner):
+    """Assert single turn when confidence is high (>= 0.9) and no issues."""
+    mock_response = {
+        "summary": "High confidence plan",
+        "suggestions": [
+            {"pet_name": "Mochi", "title": "Breakfast", "scheduled_time": "08:00", "duration_minutes": 15, "category": "feeding"},
+            {"pet_name": "Mochi", "title": "Morning Walk", "scheduled_time": "08:30", "duration_minutes": 30, "category": "exercise"}
+        ],
+        "confidence": 0.95
+    }
+    mock_ollama.return_value = mock_ollama.response_class(json.dumps(mock_response))
+    
+    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
+        suggest_schedule_tool("Plan today")
+    
+    assert mock_ollama.call_count == 1
+
+@pytest.mark.usefixtures("mock_persistence")
+def test_suggest_schedule_refines_up_to_five_turns(mock_ollama, mock_owner):
+    """If issues persist, must loop up to 5 times then stop."""
+    # Always return a response with an issue (missing feeding for Mochi)
+    bad_response = {
+        "summary": "No feeding here",
+        "suggestions": [
+            {"pet_name": "Mochi", "title": "Walk", "scheduled_time": "08:00", "duration_minutes": 20, "category": "exercise"}
+        ],
+        "confidence": 0.95
+    }
+    mock_ollama.return_value = mock_ollama.response_class(json.dumps(bad_response))
+    
+    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
+        result = suggest_schedule_tool("Plan")
+    
+    assert mock_ollama.call_count == 5
+    assert "Note:** Some issues remain" in result["message"]
+
+@pytest.mark.usefixtures("mock_persistence")
+def test_suggest_schedule_respects_daily_time_budget(mock_ollama, mock_owner):
+    """Verify that the tool detects and reports when total minutes exceed available_minutes."""
+    mock_owner.available_minutes = 30 # Very tight budget
+    
+    too_long_response = {
+        "summary": "Too much work",
+        "suggestions": [
+            {"pet_name": "Mochi", "title": "Epic Journey", "scheduled_time": "08:00", "duration_minutes": 120, "category": "exercise"},
+            {"pet_name": "Mochi", "title": "Big Breakfast", "scheduled_time": "10:00", "duration_minutes": 60, "category": "feeding"}
+        ],
+        "confidence": 0.95
+    }
+    
+    # Second turn fixed (just for test flow)
+    fixed_response = {
+        "summary": "Fixed budget",
+        "suggestions": [
+            {"pet_name": "Mochi", "title": "Short Walk", "scheduled_time": "08:00", "duration_minutes": 15, "category": "exercise"},
+            {"pet_name": "Mochi", "title": "Bite", "scheduled_time": "08:30", "duration_minutes": 5, "category": "feeding"}
+        ],
+        "confidence": 0.95
+    }
+    
+    mock_ollama.side_effect = [
+        mock_ollama.response_class(json.dumps(too_long_response)),
+        mock_ollama.response_class(json.dumps(fixed_response))
+    ]
+    
+    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
+        result = suggest_schedule_tool("Plan")
+    
+    assert mock_ollama.call_count == 2
+    # Check that turn 2 messages contained budget overflow warning
+    feedback = mock_ollama.call_args_list[1][1]["messages"][-1]["content"]
+    assert "OVER_BUDGET" in feedback
+
+@pytest.mark.usefixtures("mock_persistence")
+def test_suggest_schedule_rejects_invalid_hhmm(mock_ollama, mock_owner):
+    """Times like '25:99' must be flagged in feedback."""
+    bad_time_response = {
+        "summary": "Time travel",
+        "suggestions": [
+            {"pet_name": "Mochi", "title": "Future Feed", "scheduled_time": "25:99", "duration_minutes": 10, "category": "feeding"}
+        ],
+        "confidence": 0.95
+    }
+    
+    fixed_response = {
+        "summary": "Real time",
+        "suggestions": [
+            {"pet_name": "Mochi", "title": "Feed", "scheduled_time": "08:00", "duration_minutes": 10, "category": "feeding"},
+            {"pet_name": "Mochi", "title": "Walk", "scheduled_time": "10:00", "duration_minutes": 20, "category": "exercise"}
+        ],
+        "confidence": 0.95
+    }
+    
+    mock_ollama.side_effect = [
+        mock_ollama.response_class(json.dumps(bad_time_response)),
+        mock_ollama.response_class(json.dumps(fixed_response))
+    ]
+    
+    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
+        suggest_schedule_tool("Plan")
+        
+    feedback = mock_ollama.call_args_list[1][1]["messages"][-1]["content"]
+    assert "INVALID_TIME" in feedback
+
+@pytest.mark.usefixtures("mock_persistence")
+def test_suggest_schedule_same_category_proximity_check(mock_ollama, mock_owner):
+    """Two feedings 15 minutes apart should be flagged and spread."""
+    too_close_response = {
+        "summary": "Too frequent",
+        "suggestions": [
+            {"pet_name": "Mochi", "title": "Breakfast 1", "scheduled_time": "08:00", "duration_minutes": 10, "category": "feeding"},
+            {"pet_name": "Mochi", "title": "Breakfast 2", "scheduled_time": "08:15", "duration_minutes": 10, "category": "feeding"}
+        ],
+        "confidence": 0.95
+    }
+    
+    fixed_response = {
+        "summary": "Spread out",
+        "suggestions": [
+            {"pet_name": "Mochi", "title": "Breakfast", "scheduled_time": "08:00", "duration_minutes": 10, "category": "feeding"},
+            {"pet_name": "Mochi", "title": "Dinner", "scheduled_time": "18:00", "duration_minutes": 10, "category": "feeding"}
+        ],
+        "confidence": 0.95
+    }
+    
+    mock_ollama.side_effect = [
+        mock_ollama.response_class(json.dumps(too_close_response)),
+        mock_ollama.response_class(json.dumps(fixed_response))
+    ]
+    
+    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
+        suggest_schedule_tool("Plan")
+        
+    feedback = mock_ollama.call_args_list[1][1]["messages"][-1]["content"]
+    assert "TOO_CLOSE" in feedback

@@ -113,6 +113,25 @@ def test_reschedule_if_recurring_daily_creates_next_day_task():
     assert next_task.completion_status is False
     assert len(pet.tasks) == 2
 
+def test_reschedule_is_idempotent():
+    """Consecutive calls for the same task should not create multiple recurrences."""
+    pet = Pet(name="Mochi", species="dog", age=3)
+    owner = Owner(name="Alex", available_minutes=120, pets=[pet])
+    scheduler = Scheduler(owner=owner)
+
+    task = Task(title="Walk", duration_minutes=30, priority="high", category="walk", frequency="daily", due_date="2026-03-25")
+    pet.add_task(task)
+
+    # First call - creates recurrence
+    scheduler.reschedule_if_recurring(task, pet)
+    assert len(pet.tasks) == 2
+    child_id = task.created_next_task_id
+
+    # Second call - should NOT create another one
+    scheduler.reschedule_if_recurring(task, pet)
+    assert len(pet.tasks) == 2
+    assert task.created_next_task_id == child_id
+
 
 def test_reschedule_once_frequency_returns_none():
     """A one-off task should not produce a next occurrence."""
@@ -282,6 +301,24 @@ def test_detect_conflicts_midnight_slot():
     assert len(conflicts) == 1
     assert "00:00" in conflicts[0]
 
+def test_detect_conflicts_partial_overlap():
+    """Verify that overlaps within duration windows (e.g., 08:00 for 30m vs 08:15) are detected."""
+    pet = Pet(name="Mochi", species="dog", age=3)
+    owner = Owner(name="Alex", available_minutes=120, pets=[pet])
+    scheduler = Scheduler(owner=owner)
+    
+    # Task 1: 08:00 to 08:30
+    pet.add_task(Task(title="Long Walk", duration_minutes=30, scheduled_time="08:00", priority="high", category="walk", frequency="once"))
+    # Task 2: 08:15 to 08:30 (Matches the second half of Task 1)
+    pet.add_task(Task(title="Quick Feed", duration_minutes=15, scheduled_time="08:15", priority="high", category="feeding", frequency="once"))
+    
+    conflicts = scheduler.detect_time_conflicts()
+    
+    # NOTE: This is a known gap. Current implementation only checks exact HH:MM strings.
+    # We expect this to fail (return 0 conflicts) until logic is upgraded.
+    assert len(conflicts) >= 1
+    assert "08:15" in conflicts[0] or "overlap" in conflicts[0].lower()
+
 
 # ---------------------------------------------------------------------------
 # Scheduler: generate_plan logic
@@ -322,6 +359,32 @@ def test_generate_plan_sorts_by_priority():
     plan = scheduler.generate_plan()
 
     assert [t.priority for t in plan.tasks] == ["high", "medium", "low"]
+
+def test_generate_plan_empty_tasks():
+    """generate_plan() should return an empty Schedule if the owner has no tasks."""
+    owner = Owner(name="No Tasks", available_minutes=60)
+    scheduler = Scheduler(owner=owner)
+    plan = scheduler.generate_plan()
+    
+    assert plan.tasks == []
+    assert plan.total_duration == 0
+    assert plan.unscheduled == []
+
+def test_generate_plan_all_fit():
+    """generate_plan() should schedule all tasks if the total duration is within budget."""
+    owner = Owner(name="Budget King", available_minutes=100)
+    pet = Pet(name="Mochi", species="dog", age=3)
+    owner.add_pet(pet)
+    
+    pet.add_task(Task(title="T1", duration_minutes=30, priority="high", category="walk", frequency="daily"))
+    pet.add_task(Task(title="T2", duration_minutes=30, priority="high", category="walk", frequency="daily"))
+    
+    scheduler = Scheduler(owner=owner)
+    plan = scheduler.generate_plan()
+    
+    assert len(plan.tasks) == 2
+    assert plan.total_duration == 60
+    assert plan.unscheduled == []
 
 
 # ---------------------------------------------------------------------------

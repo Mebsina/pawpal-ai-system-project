@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import time as dtime
 from pawpal_system import Pet, Task, Scheduler, save_data, load_data
 from ai.router import classify_and_route
+import streamlit.components.v1 as components
 
 PRIORITY_EMOJI = {"high": "🔴", "medium": "🟡", "low": "🟢"}
 CATEGORY_EMOJI = {
@@ -333,10 +334,18 @@ def ai_chat_dialog():
 if st.button("💬 Ask AI", type="secondary"):
     ai_chat_dialog()
 
-# Execute a bulletproof Javascript payload to physically extract the button and pin it
-st.html(
+# Reverting to components.html: because st.html() blocked Javascript execution. 
+# Resolving the terminal deprecation warning causes the floating UI layout to fail.
+components.html(
     """
     <div style="display:none;">
+    <style>
+    /* Shift the Streamlit Dialog natively to the right side of the screen */
+    div[data-testid="stDialog"] {
+        margin-left: auto !important;
+        margin-right: 50px !important;
+    }
+    </style>
     <script>
     // Search the parent React virtual DOM for our specific Ask AI button
     const buttons = window.parent.document.querySelectorAll('button');
@@ -359,6 +368,8 @@ st.html(
     });
     </script>
     </div>
-    """
+    """,
+    height=0,
+    width=0
 )
 

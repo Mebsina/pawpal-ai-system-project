@@ -9,7 +9,7 @@ import ollama
 import streamlit as st
 
 from config import MODEL_NAME, STRICT_TEMPERATURE, CHAT_TEMPERATURE
-from ai.tools import add_task_tool, check_schedule_tool, get_insights_tool, predictive_alerts_tool, suggest_schedule_tool
+from ai.tools import add_task_tool, check_schedule_tool, get_insights_tool, predictive_alerts_tool, suggest_schedule_tool, list_pets_tool
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +50,7 @@ def classify_and_route(user_input: str, chat_history: list = None):
 - ADD_TASK: The user wants to schedule a specific NEW care event (e.g. 'walk Mochi at 2pm').
 - CHECK_SCHEDULE: The user wants to VIEW their CURRENTLY scheduled tasks for today. (e.g. 'what is my plan?', 'show my schedule').
 - SUGGEST_SCHEDULE: The user wants the AI to ANALYZE data and PROPOSE new things to do. (e.g. 'what should I schedule?', 'what do my pets need?', 'give me a plan base on history').
+- LIST_PETS: The user wants to see a list of all their pets (e.g., 'what pets do I have?', 'show my animals').
 - PET_INSIGHTS: The user is asking for analytics, history, or how often they completed tasks.
 - CHECK_ALERTS: The user asks for alerts, warnings, or if they missed anything.
 - HELP_MENU: The user explicitly types 'menu', requests help, asks what you can do, or asks for options.
@@ -93,6 +94,9 @@ Return absolutely nothing but the exact category string."""
     elif "CHECK_ALERTS" in intent:
         st.session_state.active_intent = None
         return predictive_alerts_tool(user_input, chat_history)
+    elif "LIST_PETS" in intent:
+        st.session_state.active_intent = None
+        return list_pets_tool(user_input, chat_history)
     elif "HELP_MENU" in intent:
         return {
             "type": "show_quick_menu",

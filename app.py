@@ -419,6 +419,7 @@ def menu_btn_cb(opt):
 def render_quick_menu(use_full_width=True):
     """Abstracts the core quick actions into a reusable DRY rendering container."""
     st.button("📅 Check Plan", use_container_width=use_full_width, on_click=menu_btn_cb, args=("What's on my plan for today?",))
+    st.button("🐾 My Pets", use_container_width=use_full_width, on_click=menu_btn_cb, args=("What pets do I have registered?",))
     st.button("🦮 Schedule Task", use_container_width=use_full_width, on_click=menu_btn_cb, args=("Schedule a task for my pet",))
     st.button("🤔 What should I schedule?", use_container_width=use_full_width, on_click=menu_btn_cb, args=("What should I schedule for my pets?",))
     st.button("🔔 Check Alerts", use_container_width=use_full_width, on_click=menu_btn_cb, args=("Do I have any alerts or missed tasks?",))

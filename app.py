@@ -309,20 +309,40 @@ def ai_chat_dialog():
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
                 
-    # Interactive Chat Loop
+        # Construct the Suggestion Menu exclusively when history is empty using a destructible placeholder
+        menu_placeholder = st.empty()
+        user_prompt = None
+        
+        if len(st.session_state.chat_history) == 1:
+            with menu_placeholder.container():
+                if st.button("📅 Check Plan", use_container_width=False):
+                    user_prompt = "What's on my plan for today?"
+                if st.button("🦮 Schedule Task", use_container_width=False):
+                    user_prompt = "Schedule a task for my pet"
+                if st.button("❓ User Guide", use_container_width=False):
+                    user_prompt = "What can you help me with?"
+
+    # Merge standard typing logic with our menu clicks
     if prompt := st.chat_input("Ask PawPal to schedule a walk, check a plan, etc."):
+        user_prompt = prompt
+
+    # Unified pipeline for evaluating any user intent
+    if user_prompt:
+        # Instantly annihilate the menu buttons from the UI layout dynamically before proceeding
+        menu_placeholder.empty()
+        
         # Save user message to state
-        st.session_state.chat_history.append({"role": "user", "content": prompt})
+        st.session_state.chat_history.append({"role": "user", "content": user_prompt})
         
         # Visually inject newly generated messages DIRECTLY into the upper container (msg_container)
         with msg_container:
             with st.chat_message("user"):
-                st.markdown(prompt)
+                st.markdown(user_prompt)
                 
             # Route to AI and conditionally draw the spinner securely above the input
             with st.chat_message("assistant"):
-                with st.spinner("Thinking..."):
-                    response_text = classify_and_route(prompt)
+                with st.spinner("Responding..."):
+                    response_text = classify_and_route(user_prompt)
                 st.markdown(response_text)
                 
         # Save assistant message to state

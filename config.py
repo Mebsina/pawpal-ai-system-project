@@ -27,6 +27,13 @@ CHAT_TEMPERATURE = 0.7
 # Path pointing to the persistent JSON datastore.
 DATA_FILE = "data/pawpal_data.json"
 
+# Numeric weight assigned to task priorities for sorting algorithms.
+PRIORITY_ORDER: dict[str, int] = {
+    "low": 1,
+    "medium": 2,
+    "high": 3,
+}
+
 # --- Pet Care Guidelines ---
 # Standard industry baselines used by the AI when suggesting plans.
 STANDARD_CARE_GUIDELINES = {

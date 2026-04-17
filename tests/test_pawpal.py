@@ -1,6 +1,7 @@
 """Phase 5: Testing and Verification - initial test suite."""
 
-from pawpal_system import Owner, Pet, Task, Scheduler, AnalyticsEngine, CompletionRecord, save_data, load_data, DATA_FILE
+from pawpal_system import Owner, Pet, Task, Scheduler, AnalyticsEngine, CompletionRecord, save_data, load_data
+from config import DATA_FILE, PRIORITY_ORDER
 import os
 import json
 from datetime import datetime, timedelta

@@ -11,18 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date, timedelta, datetime
 
-DATA_FILE = "data/pawpal_data.json"
-
-# ---------------------------------------------------------------------------
-# Module-level constants
-# ---------------------------------------------------------------------------
-
-PRIORITY_ORDER: dict[str, int] = {
-    "low": 1,
-    "medium": 2,
-    "high": 3,
-}
-
+from config import DATA_FILE, PRIORITY_ORDER
 
 # ---------------------------------------------------------------------------
 # Data classes

@@ -1,7 +1,8 @@
 import streamlit as st
 from datetime import time as dtime
 from datetime import date as ddate
-from pawpal_system import Pet, Task, Scheduler, save_data, load_data, PRIORITY_ORDER
+from pawpal_system import Pet, Task, Scheduler, save_data, load_data
+from config import PRIORITY_ORDER
 from ai.router import classify_and_route
 import streamlit.components.v1 as components
 

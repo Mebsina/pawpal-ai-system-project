@@ -400,6 +400,35 @@ def confirm_plan_cb(owner_ref, suggestions):
         "content": f"Confirmed! I've added {count} suggested tasks to your schedule. Anything else I can help with?"
     })
 
+def confirm_pet_add_cb(owner_ref, pt):
+    """Callback to commit a new pet to the database."""
+    pet_data = pt["pet_data"]
+    new_pet = Pet(
+        name=pet_data["name"],
+        species=pet_data["species"],
+        age=pet_data["age"],
+        special_needs=pet_data["special_needs"]
+    )
+    owner_ref.add_pet(new_pet)
+    save_data(owner_ref)
+    st.session_state.pending_action = None
+    st.session_state.active_intent = None
+    st.session_state.chat_history.append({
+        "role": "assistant",
+        "content": f"Welcome to the family, **{new_pet.name}**! I've successfully registered their profile. What would you like to do next?"
+    })
+
+def confirm_pet_remove_cb(owner_ref, pet_name):
+    """Callback to delete a pet from the database."""
+    owner_ref.pets = [p for p in owner_ref.pets if p.name != pet_name]
+    save_data(owner_ref)
+    st.session_state.pending_action = None
+    st.session_state.active_intent = None
+    st.session_state.chat_history.append({
+        "role": "assistant",
+        "content": f"Got it. **{pet_name}** has been removed from your profile along with all their records. Is there anything else I can help with?"
+    })
+
 def cancel_task_cb():
     st.session_state.pending_action = None
     st.session_state.active_intent = None
@@ -420,6 +449,8 @@ def render_quick_menu(use_full_width=True):
     """Abstracts the core quick actions into a reusable DRY rendering container."""
     st.button("📅 Check Plan", use_container_width=use_full_width, on_click=menu_btn_cb, args=("What's on my plan for today?",))
     st.button("🐾 My Pets", use_container_width=use_full_width, on_click=menu_btn_cb, args=("What pets do I have registered?",))
+    st.button("➕ Add a Pet", use_container_width=use_full_width, on_click=menu_btn_cb, args=("I'd like to add a new pet",))
+    st.button("➖ Remove a Pet", use_container_width=use_full_width, on_click=menu_btn_cb, args=("I need to remove a pet",))
     st.button("🦮 Schedule Task", use_container_width=use_full_width, on_click=menu_btn_cb, args=("Schedule a task for my pet",))
     st.button("🤔 What should I schedule?", use_container_width=use_full_width, on_click=menu_btn_cb, args=("What should I schedule for my pets?",))
     st.button("🔔 Check Alerts", use_container_width=use_full_width, on_click=menu_btn_cb, args=("Do I have any alerts or missed tasks?",))
@@ -459,7 +490,7 @@ def ai_chat_dialog():
                 with st.spinner("Responding..."):
                     raw_response = classify_and_route(user_prompt, st.session_state.chat_history)
                     
-                    if isinstance(raw_response, dict) and raw_response.get("type") in ["task_confirmation", "selection_menu", "show_quick_menu", "show_schedule_table", "plan_suggestion"]:
+                    if isinstance(raw_response, dict) and raw_response.get("type") in ["task_confirmation", "selection_menu", "show_quick_menu", "show_schedule_table", "plan_suggestion", "pet_add_confirmation", "pet_remove_confirmation"]:
                         st.session_state.pending_action = raw_response
                         response_text = raw_response["message"]
                     else:
@@ -492,6 +523,22 @@ def ai_chat_dialog():
                     st.button("✅ Confirm Plan", use_container_width=True, on_click=confirm_plan_cb, args=(st.session_state.owner, suggestions))
                 with confirm_col2:
                     st.button("❌ Nevermind", use_container_width=True, on_click=cancel_task_cb)
+            
+            elif action["type"] == "pet_add_confirmation":
+                pt = action
+                confirm_col1, confirm_col2 = st.columns(2)
+                with confirm_col1:
+                    st.button("✅ Confirm", use_container_width=True, on_click=confirm_pet_add_cb, args=(st.session_state.owner, pt))
+                with confirm_col2:
+                    st.button("❌ Cancel", use_container_width=True, on_click=cancel_task_cb)
+
+            elif action["type"] == "pet_remove_confirmation":
+                pet_name = action["pet_name"]
+                confirm_col1, confirm_col2 = st.columns(2)
+                with confirm_col1:
+                    st.button("🗑 Confirm Removal", use_container_width=True, on_click=confirm_pet_remove_cb, args=(st.session_state.owner, pet_name))
+                with confirm_col2:
+                    st.button("❌ Cancel", use_container_width=True, on_click=cancel_task_cb)
                 
             elif action["type"] == "selection_menu":
                 for opt in action["options"]:

@@ -9,7 +9,7 @@ import ollama
 import streamlit as st
 
 from config import MODEL_NAME, STRICT_TEMPERATURE, CHAT_TEMPERATURE
-from ai.tools import add_task_tool, check_schedule_tool, get_insights_tool, predictive_alerts_tool, suggest_schedule_tool, list_pets_tool
+from ai.tools import add_task_tool, check_schedule_tool, get_insights_tool, predictive_alerts_tool, suggest_schedule_tool, list_pets_tool, add_pet_tool, remove_pet_tool
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,8 @@ def classify_and_route(user_input: str, chat_history: list = None):
     else:
         system_prompt = """Classify the following user input into strictly ONE of the categories below:
 - ADD_TASK: The user wants to schedule a specific NEW care event (e.g. 'walk Mochi at 2pm').
+- ADD_PET: The user wants to register a brand NEW pet (e.g. 'add a 2 year old cat').
+- REMOVE_PET: The user wants to delete, remove, say goodbye to, or rehome an existing pet (e.g. 'remove Mochi', 'delete Kiki').
 - CHECK_SCHEDULE: The user wants to VIEW their CURRENTLY scheduled tasks for today. (e.g. 'what is my plan?', 'show my schedule').
 - SUGGEST_SCHEDULE: The user wants the AI to ANALYZE data and PROPOSE new things to do. (e.g. 'what should I schedule?', 'what do my pets need?', 'give me a plan base on history').
 - LIST_PETS: The user wants to see a list of all their pets (e.g., 'what pets do I have?', 'show my animals').
@@ -82,6 +84,12 @@ Return absolutely nothing but the exact category string."""
     if "ADD_TASK" in intent:
         st.session_state.active_intent = "ADD_TASK"
         return add_task_tool(user_input, chat_history)
+    elif "ADD_PET" in intent:
+        st.session_state.active_intent = "ADD_PET"
+        return add_pet_tool(user_input, chat_history)
+    elif "REMOVE_PET" in intent:
+        st.session_state.active_intent = "REMOVE_PET"
+        return remove_pet_tool(user_input, chat_history)
     elif "CHECK_SCHEDULE" in intent:
         st.session_state.active_intent = None
         return check_schedule_tool(user_input, chat_history)
@@ -111,7 +119,7 @@ def conversational_bypass(user_input: str, chat_history: list = None) -> str:
     """
     Provides standard conversational feedback streams when formal tool commands are not invoked.
     """
-    system_prompt = "Act as a helpful pet care assistant. Provide brief conversational responses to general chat inquiries."
+    system_prompt = f"Act as a helpful pet care assistant. Provide brief conversational responses to general chat inquiries. IMPORTANT: If the user is trying to add, remove, or list pets, or schedule tasks, tell them you can help with that and use the menu below."
     
     messages = [{"role": "system", "content": system_prompt}]
     if chat_history:

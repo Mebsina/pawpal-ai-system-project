@@ -32,9 +32,11 @@ def classify_and_route(user_input: str, chat_history: list = None):
         logger.info(f"[ai/router] System structurally intercepted via Active Context State Lock: {intent}")
     else:
         system_prompt = """Classify the following user input into strictly ONE of the categories below:
-- ADD_TASK: The user wants to schedule a new care event (e.g. walk, feed).
-- CHECK_SCHEDULE: The user is asking to view or generate their daily plan.
+- ADD_TASK: The user wants to schedule a specific NEW care event (e.g. 'walk Mochi at 2pm').
+- CHECK_SCHEDULE: The user wants to VIEW their CURRENTLY scheduled tasks for today. (e.g. 'what is my plan?', 'show my schedule').
+- SUGGEST_SCHEDULE: The user wants the AI to ANALYZE data and PROPOSE new things to do. (e.g. 'what should I schedule?', 'what do my pets need?', 'give me a plan base on history').
 - PET_INSIGHTS: The user is asking for analytics, history, or how often they completed tasks.
+- CHECK_ALERTS: The user asks for alerts, warnings, or if they missed anything.
 - HELP_MENU: The user explicitly types 'menu', requests help, asks what you can do, or asks for options.
 - GENERAL_CHAT: The user is saying hello or asking conversational questions.
 
@@ -60,15 +62,23 @@ Return absolutely nothing but the exact category string."""
             return "I am currently unable to interpret requests. Please verify the local AI engine is running."
 
     # 3. Intent Delegation & Persistence Updates
+    from ai.tools import predictive_alerts_tool, suggest_schedule_tool
+    
     if "ADD_TASK" in intent:
         st.session_state.active_intent = "ADD_TASK"
         return add_task_tool(user_input, chat_history)
     elif "CHECK_SCHEDULE" in intent:
         st.session_state.active_intent = None
         return check_schedule_tool(user_input, chat_history)
+    elif "SUGGEST_SCHEDULE" in intent:
+        st.session_state.active_intent = None
+        return suggest_schedule_tool(user_input, chat_history)
     elif "PET_INSIGHTS" in intent:
         st.session_state.active_intent = None
         return get_insights_tool(user_input, chat_history)
+    elif "CHECK_ALERTS" in intent:
+        st.session_state.active_intent = None
+        return predictive_alerts_tool(user_input, chat_history)
     elif "HELP_MENU" in intent:
         return {
             "type": "show_quick_menu",

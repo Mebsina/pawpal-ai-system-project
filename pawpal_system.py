@@ -173,6 +173,25 @@ class AnalyticsEngine:
                 pass
         return recent
 
+    def get_unusual_patterns(self) -> list[str]:
+        """Detects if recurring tasks have been missed based on history and current status."""
+        anomalies = []
+        now = datetime.now()
+        today_iso = now.date().isoformat()
+        current_time_str = now.strftime("%H:%M")
+        
+        for pet in self.owner.pets:
+            for task in pet.tasks:
+                if not task.completion_status:
+                    # Case 1: Past Due Date
+                    if task.due_date < today_iso:
+                        anomalies.append(f"{pet.name} is missing their {task.frequency} {task.title} (Due: {task.due_date})")
+                    # Case 2: Due Today but Scheduled Time has passed
+                    elif task.due_date == today_iso:
+                        if task.scheduled_time and task.scheduled_time < current_time_str:
+                            anomalies.append(f"{pet.name}'s {task.title} was scheduled for {task.scheduled_time} today, but isn't marked done yet.")
+        return anomalies
+
 
 # ---------------------------------------------------------------------------
 # Scheduler

@@ -26,3 +26,22 @@ CHAT_TEMPERATURE = 0.7
 # --- Application Constants ---
 # Path pointing to the persistent JSON datastore.
 DATA_FILE = "data/pawpal_data.json"
+
+# --- Pet Care Guidelines ---
+# Standard industry baselines used by the AI when suggesting plans.
+STANDARD_CARE_GUIDELINES = {
+    "dog": [
+        "Feed twice a day (morning and evening).",
+        "At least one 30-minute walk per day.",
+        "Daily playtime or enrichment session."
+    ],
+    "cat": [
+        "Feed 2-3 times a day or ensure fresh food is available.",
+        "Daily play session to stimulate hunting instincts.",
+        "Grooming session every 1-2 days for long-haired cats or seniors."
+    ],
+    "general": [
+        "Check and clean water bowls daily.",
+        "Complete any medication tasks strictly on schedule."
+    ]
+}

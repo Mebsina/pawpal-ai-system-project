@@ -373,6 +373,33 @@ def confirm_task_cb(owner_ref, pt):
         "content": f"Task confirmed! I have scheduled **{task_preview.title}** for **{pet.name}** at {task_preview.scheduled_time} on {task_preview.due_date}. It will take {task_preview.duration_minutes} minutes, recurring '{task_preview.frequency}', with {task_preview.priority} priority.\n\nIs there anything else you would like to do?"
     })
 
+def confirm_plan_cb(owner_ref, suggestions):
+    """Background callback to batch-add multiple suggested tasks from the AI."""
+    count = 0
+    for s in suggestions:
+        pet = next((p for p in owner_ref.pets if p.name == s["pet_name"]), None)
+        if pet:
+            new_task = Task(
+                title=s["title"],
+                duration_minutes=s["duration_minutes"],
+                priority=s["priority"],
+                category=s["category"],
+                frequency=s["frequency"],
+                scheduled_time=s["scheduled_time"],
+                due_date=s["due_date"],
+                notes="Proactively suggested by PawPal AI"
+            )
+            pet.add_task(new_task)
+            count += 1
+    
+    save_data(owner_ref)
+    st.session_state.pending_action = {"type": "show_quick_menu"}
+    st.session_state.active_intent = None
+    st.session_state.chat_history.append({
+        "role": "assistant", 
+        "content": f"Confirmed! I've added {count} suggested tasks to your schedule. Anything else I can help with?"
+    })
+
 def cancel_task_cb():
     st.session_state.pending_action = {"type": "show_quick_menu"}
     st.session_state.active_intent = None
@@ -393,6 +420,8 @@ def render_quick_menu(use_full_width=True):
     """Abstracts the core quick actions into a reusable DRY rendering container."""
     st.button("📅 Check Plan", use_container_width=use_full_width, on_click=menu_btn_cb, args=("What's on my plan for today?",))
     st.button("🦮 Schedule Task", use_container_width=use_full_width, on_click=menu_btn_cb, args=("Schedule a task for my pet",))
+    st.button("🤔 What should I schedule?", use_container_width=use_full_width, on_click=menu_btn_cb, args=("What should I schedule for my pets?",))
+    st.button("🔔 Check Alerts", use_container_width=use_full_width, on_click=menu_btn_cb, args=("Do I have any alerts or missed tasks?",))
     st.button("📊 Track Analytics", use_container_width=use_full_width, on_click=menu_btn_cb, args=("How have I been doing with my pets this week?",))
 
 @st.dialog("🐾 PawPal AI Assistant", width="small")
@@ -429,7 +458,7 @@ def ai_chat_dialog():
                 with st.spinner("Responding..."):
                     raw_response = classify_and_route(user_prompt, st.session_state.chat_history)
                     
-                    if isinstance(raw_response, dict) and raw_response.get("type") in ["task_confirmation", "selection_menu", "show_quick_menu", "show_schedule_table"]:
+                    if isinstance(raw_response, dict) and raw_response.get("type") in ["task_confirmation", "selection_menu", "show_quick_menu", "show_schedule_table", "plan_suggestion"]:
                         st.session_state.pending_action = raw_response
                         response_text = raw_response["message"]
                     else:
@@ -451,6 +480,17 @@ def ai_chat_dialog():
                     st.button("✅ Confirm", use_container_width=True, on_click=confirm_task_cb, args=(st.session_state.owner, pt))
                 with confirm_col2:
                     st.button("❌ Cancel", use_container_width=True, on_click=cancel_task_cb)
+
+            elif action["type"] == "plan_suggestion":
+                suggestions = action["suggestions"]
+                for s in suggestions:
+                    st.markdown(f"- **{s['title']}** for **{s['pet_name']}** @ {s['scheduled_time']} ({s['duration_minutes']}m)")
+                
+                confirm_col1, confirm_col2 = st.columns(2)
+                with confirm_col1:
+                    st.button("✅ Confirm Plan", use_container_width=True, on_click=confirm_plan_cb, args=(st.session_state.owner, suggestions))
+                with confirm_col2:
+                    st.button("❌ Nevermind", use_container_width=True, on_click=cancel_task_cb)
                 
             elif action["type"] == "selection_menu":
                 for opt in action["options"]:

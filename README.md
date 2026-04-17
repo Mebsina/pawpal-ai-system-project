@@ -73,13 +73,9 @@ AI features require Ollama to be running. The app works without it but NL task c
 
 ## Sample Interactions
 
-*Fill in after AI features are built. Include at least 2-3 real input/output examples.*
-
-| Feature | User Input | AI Output |
-|---------|-----------|-----------|
-| NL Task Creation | | |
-| Chat Assistant | | |
-| Predictive Alert | | |
+| NL Task Creation | "Schedule a 20min feeding for Mochi at 8am" | "Please verify this schedule: **Feeding** for **Mochi** at 08:00... Does this look accurate?" |
+| Proactive Planner | "What should I schedule?" | "Mochi hasn't had a walk today... I suggest adding a 30min walk at 14:00." |
+| Predictive Alert | "Check alerts" | "Everything looks on track! / I noticed Mochi is missing their daily walk. Should we schedule one?" |
 
 ## Design Decisions
 
@@ -95,12 +91,12 @@ AI features require Ollama to be running. The app works without it but NL task c
 
 *Fill in after running the full test suite.*
 
-- **Automated tests**: 26 core tests passing (`pytest tests/test_pawpal.py`); X / Y router tests passing (`pytest tests/test_router.py`)
-- **Conversational Missing Data Protocol**: AI successfully intercepts broken variables (like missing time) by delivering natural counter-prompts instead of injecting defaults.
-- **JSON Extraction Guardrails**: Malformed formatting (wrapper boilerplate output) is correctly nullified via `utils.py` regex stripping capabilities.
-- **Human evaluation**: Manually verified chat responses are correctly routed between Chat and Tools without cross-contamination. Output effectively renders inside the UI Stream.
+- **Automated tests**: 26 core tests passing (`pytest tests/test_pawpal.py`).
+- **Proactive Anomaly Detection**: `AnalyticsEngine` successfully identifies missed recurring tasks and triggers conversational alerts.
+- **Batch Plan Execution**: The AI assistant can process multiple pet requirements simultaneously and apply batch updates to the schedule upon user confirmation.
+- **Human evaluation**: Manually verified that "Smart Plan" suggestions respect pet species/age context (e.g., suggesting play for kittens).
 
-*Summary: Central architectural tests passing. The system securely routes intentions and halts bad data requests interactively.*
+*Summary: All AI milestones complete. The system now acts as a proactive agent rather than a reactive scheduler.*
 
 ## Reflection
 

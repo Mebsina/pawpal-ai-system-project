@@ -93,7 +93,9 @@ def test_check_schedule_tool(mock_persistence, mock_ollama, mock_owner):
         due_date=datetime.now().strftime("%Y-%m-%d")
     ))
     
-    result = check_schedule_tool("what is my schedule?")
+    # Patch directly in the tool's namespace to be 100% sure the mock is used
+    with patch("ai.tools.check_schedule.load_data", return_value=mock_owner):
+        result = check_schedule_tool("what is my schedule?")
     
     assert isinstance(result, dict)
     assert result["type"] == "show_schedule_table"

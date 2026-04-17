@@ -139,8 +139,12 @@ Output: {{"title": null, "pet_name": null, "duration_minutes": null, "priority":
         matching_pet.tasks.remove(task_preview)
         
         if conflicts:
-            conflict_str = " and ".join(conflicts)
-            return f"I can't lock that in just yet! ⚠ I noticed {conflict_str}.\n\nWhat alternative time would work better?"
+            # ONLY report conflicts that happen at the time the user specifically requested!
+            # This prevents unrelated database messes from leaking into new requests.
+            relevant_conflicts = [c for c in conflicts if f"at {scheduled_time}" in c]
+            if relevant_conflicts:
+                conflict_str = " and ".join(relevant_conflicts)
+                return f"I can't lock that in just yet! ⚠ I noticed {conflict_str}.\n\nWhat alternative time would work better?"
             
     except Exception as e:
         logger.error(f"Task object creation failed: {e}")

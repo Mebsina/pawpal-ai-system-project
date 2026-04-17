@@ -109,6 +109,7 @@ AI features require Ollama to be running. The app works without it but NL task c
     - **Pet Management**: Conversational Add/Remove/List logic validation with user guardrails.
     - **Output Sanitization**: Robust JSON extraction from varied LLM response formats.
 - **Infrastructure**: Uses `unittest.mock` and a synchronized `SessionState` fixture in `conftest.py` to isolate tests from local Ollama and Streamlit states.
+- **Confidence Scoring**: Intent routing and data extraction modules now rate their certainty (0.0 to 1.0), recorded in system logs for quantifiable reliability auditing.
 - **Documentation Standard**: All 41 test cases (Core + AI) feature standardized header documentation for improved auditability.
 
 - **Proactive Anomaly Detection**: `AnalyticsEngine` successfully identifies missed recurring tasks and triggers conversational alerts.

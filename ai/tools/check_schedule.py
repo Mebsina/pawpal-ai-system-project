@@ -1,22 +1,22 @@
 import logging
 import ollama
 from datetime import date
-from config import MODEL_NAME
+import config
 from core import load_data, Scheduler
+from ai.utils import extract_json
 
 logger = logging.getLogger(__name__)
 
 def check_schedule_tool(user_input: str, chat_history: list = None):
     """
-    Analyzes mathematical scheduling bounds logically and passes the unified variable tracking natively to an LLM 
-    instruction structurally strictly limited to a single output sentence serving as a humanized visual wrapper for the pandas dataframe loop.
+    Analyzes mathematical scheduling bounds and provides a humanized visual wrapper 
+    formatted as JSON with confidence scoring.
     """
     
     owner = load_data()
     scheduler = Scheduler(owner=owner)
     today_str = date.today().isoformat()
     
-    # Isolate uncompleted metrics functionally for exclusively the current date
     incomplete = scheduler.filter_tasks(status=False, target_date=today_str)
     
     if not incomplete:
@@ -27,35 +27,41 @@ def check_schedule_tool(user_input: str, chat_history: list = None):
         
     schedule = scheduler.generate_plan(tasks=incomplete)
     
-    # Extract structural metrics cleanly
     tasks_count = len(schedule.tasks)
     used_mins = schedule.total_duration
     rem_mins = owner.available_minutes - used_mins
     unscheduled = len(schedule.unscheduled)
     
-    # Construct an explicitly constrained zero-shot prompt forcing exactly 1 conversation wrapper over the vars
     system_prompt = f"""You are PawPal, a warm and helpful pet care assistant.
 The user is checking their daily schedule. 
 Strictly write ONLY ONE warm, conversational sentence introducing their plan. 
-Incorporate these exact metrics seamlessly into the sentence: 
-- {tasks_count} tasks scheduled 
-- {used_mins} minutes utilized
-- {rem_mins} minutes remaining in their daily time budget
-{'Warn them gently that ' + str(unscheduled) + ' tasks could not fit today.' if unscheduled > 0 else 'All tasks fit perfectly!'}
-CRITICAL RULE: DO NOT generate a list or a table. DO NOT output the tasks themselves. Write EXACTLY one friendly greeting sentence!"""
+Incorporate these exact metrics: {tasks_count} tasks, {used_mins} mins used, {rem_mins} mins remaining.
+{'Warn them that ' + str(unscheduled) + ' tasks could not fit.' if unscheduled > 0 else 'All tasks fit!'}
+
+Return strictly a JSON dictionary:
+- "message": (string) Your ONE friendly greeting sentence.
+- "confidence": (float) A score between 0.0 and 1.0 representing your certainty.
+
+ABSOLUTELY NO CONVERSATIONAL TEXT outside the JSON. Return ONLY raw valid JSON."""
 
     try:
         response = ollama.chat(
-            model=MODEL_NAME,
+            model=config.MODEL_NAME,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_input}
             ],
-            options={"temperature": 0.5}
+            options={"temperature": config.CHAT_TEMPERATURE, "format": "json"}
         )
-        llm_greeting = response.message.content.strip()
+        extracted_data = extract_json(response.message.content)
+        if extracted_data:
+            confidence = extracted_data.get("confidence", 0.0)
+            logger.info(f"[ai/tools/check_schedule] Summary Confidence: {confidence}")
+            llm_greeting = extracted_data.get("message", "Here is your plan for today:")
+        else:
+            llm_greeting = response.message.content.strip()
     except Exception as e:
-        logger.error(f"[check_schedule] LLM summarization pipeline failed organically: {e}")
+        logger.error(f"[check_schedule] LLM summarization pipeline failed: {e}")
         llm_greeting = "Here is your completely optimized plan for today:"
         
     return {

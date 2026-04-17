@@ -46,10 +46,11 @@ Return strictly a JSON dictionary featuring the following format:
 - "frequency": (string or null) 
 - "scheduled_time": (string or null) "HH:MM" format (24-hour).
 - "due_date": (string or null) "YYYY-MM-DD" format.
+- "confidence": (float) A score between 0.0 and 1.0 representing your certainty about the extraction.
 
 EXAMPLE W/ VAGUE INPUT:
 Input: "Schedule a task for my pet"
-Output: {{"title": null, "pet_name": null, "duration_minutes": null, "priority": null, "category": null, "frequency": null, "scheduled_time": null, "due_date": null}}
+Output: {{"title": null, "pet_name": null, "duration_minutes": null, "priority": null, "category": null, "frequency": null, "scheduled_time": null, "due_date": null, "confidence": 0.5}}
 """
     
     messages = [{"role": "system", "content": system_prompt}]
@@ -72,6 +73,9 @@ Output: {{"title": null, "pet_name": null, "duration_minutes": null, "priority":
     
     if not extracted_data:
         return "The natural language extractor failed to assemble a valid task. Could you rephrase the request?"
+        
+    confidence = extracted_data.get("confidence", 0.0)
+    logger.info(f"[ai/tools/add_task] Extraction Confidence: {confidence}")
         
     pet_name = extracted_data.get("pet_name")
     scheduled_time = extracted_data.get("scheduled_time")

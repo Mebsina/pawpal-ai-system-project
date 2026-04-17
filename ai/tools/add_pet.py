@@ -27,6 +27,7 @@ Return strictly a JSON dictionary:
 - "species": (string or null)
 - "age": (integer or null)
 - "special_needs": (list of strings or null)
+- "confidence": (float) A score between 0.0 and 1.0 representing your certainty about the extraction.
 """
 
     messages = [{"role": "system", "content": system_prompt}]
@@ -42,6 +43,9 @@ Return strictly a JSON dictionary:
             options={"temperature": STRICT_TEMPERATURE, "format": "json"}
         )
         extracted_data = extract_json(response.message.content)
+        if extracted_data:
+            confidence = extracted_data.get("confidence", 0.0)
+            logger.info(f"[ai/tools/add_pet] Extraction Confidence: {confidence}")
     except Exception as e:
         logger.error(f"Add pet extraction failed: {e}")
         return "I'm having trouble connecting to the AI. Please try again."

@@ -35,21 +35,31 @@ def remove_pet_tool(user_input: str, chat_history: list = None):
         system_prompt = f"""Identify the EXACT name of the pet the user wants to remove from this list: {', '.join(pet_names)}.
 
 CRITICAL INSTRUCTIONS:
-1. If the user DID NOT specify a name from the list above, you MUST return 'null'.
-2. Do NOT guess, default, or pick a pet if the user is being general (e.g., "remove a pet").
-3. Return ONLY the name or 'null'. No other text."""
+1. If the user DID NOT specify a name from the list above, you MUST return 'null' for pet_name.
+2. Return strictly a JSON dictionary:
+   - "pet_name": (string or null)
+   - "confidence": (float) A score between 0.0 and 1.0 representing your certainty.
+
+ABSOLUTELY NO CONVERSATIONAL TEXT. Return ONLY raw valid JSON."""
 
         try:
+            from ai.utils import extract_json
             response = ollama.chat(
                 model=MODEL_NAME,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"The user says: {user_input}"}
                 ],
-                options={"temperature": STRICT_TEMPERATURE}
+                options={"temperature": STRICT_TEMPERATURE, "format": "json"}
             )
-            extracted = response.message.content.strip().replace("'", "").replace('"', "").replace(".", "")
-            target_name = next((p for p in pet_names if p.lower() == extracted.lower()), "null")
+            extracted_data = extract_json(response.message.content)
+            if extracted_data:
+                extracted_name = extracted_data.get("pet_name")
+                confidence = extracted_data.get("confidence", 0.0)
+                logger.info(f"[ai/tools/remove_pet] Extraction Confidence: {confidence}")
+                target_name = next((p for p in pet_names if p.lower() == str(extracted_name).lower()), "null")
+            else:
+                target_name = "null"
         except Exception as e:
             logger.error(f"Remove pet extraction failed: {e}")
             target_name = "null"

@@ -21,12 +21,16 @@ def test_router_escape_keywords(mock_session_state):
     mock_session_state.active_intent = "ADD_TASK"
     
     # Trigger escape via keywords defined in router.py
-    # Note: 'cancel' clears the intent but then proceeds to conversational fallback
+    # Note: 'cancel' clears the intent but then proceeds to conversational fallback or help menu
     result = classify_and_route("cancel")
     
     assert mock_session_state.active_intent is None
-    assert isinstance(result, str)
-    assert "cancel" in result.lower() or "sorry" in result.lower()
+    # Allow for either a conversational string or a quick menu dictionary
+    if isinstance(result, dict):
+        assert result["type"] == "show_quick_menu"
+    else:
+        assert isinstance(result, str)
+        assert "cancel" in result.lower() or "sorry" in result.lower()
 
 def test_router_locked_intent_bypass(mock_session_state, mock_ollama):
     """Ensure active intent locks bypass classification logic."""
@@ -44,7 +48,7 @@ def test_router_locked_intent_bypass(mock_session_state, mock_ollama):
 def test_router_classification_routing(mock_session_state, mock_ollama):
     """Ensure Ollama classification correctly routes to specific tools."""
     mock_session_state.active_intent = None
-    mock_ollama.return_value = mock_ollama.response_class("ADD_TASK")
+    mock_ollama.return_value = mock_ollama.response_class('{"intent": "ADD_TASK", "confidence": 0.99}')
     
     with patch("ai.router.add_task_tool", return_value="Routed") as mock_tool:
         result = classify_and_route("i want to walk my dog")

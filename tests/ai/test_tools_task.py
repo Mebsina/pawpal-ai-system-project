@@ -20,7 +20,7 @@ from core.models import Task
 
 def test_add_task_tool_success(mock_persistence, mock_ollama, mock_owner):
     """Ensure valid AI extraction results in a task confirmation."""
-    json_output = '```json\n{"title": "Walk", "pet_name": "Mochi", "duration_minutes": 30, "scheduled_time": "14:00", "due_date": "2026-04-17"}\n```'
+    json_output = '```json\n{"title": "Walk", "pet_name": "Mochi", "duration_minutes": 30, "scheduled_time": "14:00", "due_date": "2026-04-17", "confidence": 0.95}\n```'
     mock_ollama.return_value = mock_ollama.response_class(json_output)
     
     with patch("ai.tools.add_task.datetime") as mock_dt, \
@@ -38,7 +38,7 @@ def test_add_task_tool_success(mock_persistence, mock_ollama, mock_owner):
 def test_add_task_tool_missing_pet(mock_persistence, mock_ollama, mock_owner):
     """Ensure missing pet name triggers a selection menu."""
     # Mocking extraction WITH missing pet_name
-    json_output = '{"title": "Feed", "pet_name": null, "scheduled_time": "08:00"}'
+    json_output = '{"title": "Feed", "pet_name": null, "scheduled_time": "08:00", "confidence": 0.85}'
     mock_ollama.return_value = mock_ollama.response_class(json_output)
     
     # Add another pet to ensure it doesn't auto-pick
@@ -54,7 +54,7 @@ def test_add_task_tool_missing_pet(mock_persistence, mock_ollama, mock_owner):
 
 def test_add_task_tool_conflict(mock_persistence, mock_ollama, mock_owner):
     """Ensure detected schedule overlaps trigger a warning instead of confirmation."""
-    json_output = '{"title": "Play", "pet_name": "Mochi", "duration_minutes": 60, "scheduled_time": "14:00"}'
+    json_output = '{"title": "Play", "pet_name": "Mochi", "duration_minutes": 60, "scheduled_time": "14:00", "confidence": 0.9}'
     mock_ollama.return_value = mock_ollama.response_class(json_output)
     
     # Pre-populate a conflicting task at EXACTLY the same time as the mock extraction

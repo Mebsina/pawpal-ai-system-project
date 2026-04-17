@@ -20,7 +20,7 @@ from ai.tools.list_pets import list_pets_tool
 
 def test_add_pet_tool_success(mock_persistence, mock_ollama, mock_owner):
     """Ensure valid AI extraction results in a pet add confirmation."""
-    json_output = '{"name": "Bella", "species": "dog", "age": 2, "special_needs": ["none"]}'
+    json_output = '{"name": "Bella", "species": "dog", "age": 2, "special_needs": ["none"], "confidence": 0.98}'
     mock_ollama.return_value = mock_ollama.response_class(json_output)
     
     with patch("ai.tools.add_pet.load_data", return_value=mock_owner):
@@ -33,7 +33,7 @@ def test_add_pet_tool_success(mock_persistence, mock_ollama, mock_owner):
 
 def test_add_pet_tool_missing_age(mock_persistence, mock_ollama, mock_owner):
     """Ensure missing age triggers a follow-up question."""
-    json_output = '{"name": "Bella", "species": "dog", "age": null}'
+    json_output = '{"name": "Bella", "species": "dog", "age": null, "confidence": 0.8}'
     mock_ollama.return_value = mock_ollama.response_class(json_output)
     
     with patch("ai.tools.add_pet.load_data", return_value=mock_owner):
@@ -54,7 +54,7 @@ def test_remove_pet_tool_direct_match(mock_persistence, mock_owner):
 
 def test_remove_pet_tool_llm_fallback(mock_persistence, mock_ollama, mock_owner):
     """Ensure natural language removal requests are extracted by LLM."""
-    mock_ollama.return_value = mock_ollama.response_class("Mochi")
+    mock_ollama.return_value = mock_ollama.response_class('{"pet_name": "Mochi", "confidence": 0.99}')
     
     with patch("ai.tools.remove_pet.load_data", return_value=mock_owner):
         result = remove_pet_tool("i need to rehome Mochi")

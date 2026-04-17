@@ -9,14 +9,16 @@ import ollama
 import streamlit as st
 
 from config import MODEL_NAME, STRICT_TEMPERATURE, CHAT_TEMPERATURE
-from ai.tools.add_task import add_task_tool
-from ai.tools.check_schedule import check_schedule_tool
-from ai.tools.get_insights import get_insights_tool
-from ai.tools.predictive_alerts import predictive_alerts_tool
-from ai.tools.suggest_schedule import suggest_schedule_tool
-from ai.tools.list_pets import list_pets_tool
-from ai.tools.add_pet import add_pet_tool
-from ai.tools.remove_pet import remove_pet_tool
+from .tools import (
+    add_task_tool,
+    check_schedule_tool,
+    get_insights_tool,
+    predictive_alerts_tool,
+    suggest_schedule_tool,
+    list_pets_tool,
+    add_pet_tool,
+    remove_pet_tool
+)
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +72,14 @@ CRITICAL DISAMBIGUATION:
 2. 'Add a pet' is for registration only. If they mention an action (walk/feed), it is ADD_TASK.
 
 CRITICAL RULE: You MUST classify the intent of the VERY LAST MESSAGE in the sequence. Previous messages are ONLY context. 
-Return absolutely nothing but the exact category string."""
 
+Return strictly a JSON dictionary:
+- "intent": (string) One of the categories above.
+- "confidence": (float) A score between 0.0 and 1.0 representing your certainty.
+
+ABSOLUTELY NO CONVERSATIONAL TEXT. Return ONLY raw valid JSON."""
+
+        from ai.utils import extract_json
         messages = [{"role": "system", "content": system_prompt}]
         if chat_history:
             messages.extend(chat_history)
@@ -82,10 +90,17 @@ Return absolutely nothing but the exact category string."""
             response = ollama.chat(
                 model=MODEL_NAME,
                 messages=messages,
-                options={"temperature": STRICT_TEMPERATURE}
+                options={"temperature": STRICT_TEMPERATURE, "format": "json"}
             )
-            intent = response.message.content.strip().upper()
-            logger.info(f"[ai/router] Interpreted Context Classification: {intent}")
+            # Use the extraction utility to handle potential boilerplate
+            classification = extract_json(response.message.content)
+            if classification:
+                intent = str(classification.get("intent", "GENERAL_CHAT")).strip().upper()
+                confidence = classification.get("confidence", 0.0)
+                logger.info(f"[ai/router] Intent: {intent}, Confidence: {confidence}")
+            else:
+                intent = "GENERAL_CHAT"
+                logger.warning(f"[ai/router] Failed to parse classification JSON: {response.message.content}")
         except Exception as e:
             logger.warning(f"[ai/router] Local Ollama classification failed: {e}")
             return "I am currently unable to interpret requests. Please verify the local AI engine is running."

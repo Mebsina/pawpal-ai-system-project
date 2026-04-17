@@ -38,9 +38,6 @@ if "owner_editing" not in st.session_state:
 if "active_pet_index" not in st.session_state:
     st.session_state.active_pet_index = 0
 
-if "next_occurrences" not in st.session_state:
-    st.session_state.next_occurrences = {}  # id(task) -> next Task created on complete
-
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [{"role": "assistant", "content": "Hi! How can I help you and your pets today?"}]
 
@@ -218,20 +215,20 @@ else:
                 row[6].write(category_label)
                 row[7].write(t.frequency)
                 if t.completion_status:
-                    if row[8].button("No", type="primary", key=f"uncomplete_{id(t)}", use_container_width=True):
+                    if row[8].button("No", type="primary", key=f"uncomplete_{t.id}", use_container_width=True):
                         t.completion_status = False
-                        next_task = st.session_state.next_occurrences.pop(id(t), None)
-                        if next_task is not None:
-                            pet.tasks.remove(next_task)
+                        if t.created_next_task_id:
+                            pet.tasks = [task for task in pet.tasks if task.id != t.created_next_task_id]
+                            t.created_next_task_id = None
                         save_data(owner)
                         st.rerun()
                 else:
-                    if row[8].button("Yes", type="secondary", key=f"complete_{id(t)}", use_container_width=True):
+                    if row[8].button("Yes", type="secondary", key=f"complete_{t.id}", use_container_width=True):
                         # Construct native analytics tracking ledger
                         from pawpal_system import CompletionRecord
                         from datetime import datetime
                         record = CompletionRecord(
-                            task_id=id(t),
+                            task_id=t.id,
                             pet_name=pet.name,
                             task_title=t.title,
                             category=t.category,
@@ -239,9 +236,7 @@ else:
                         )
                         owner.history.append(record)
 
-                        next_task = Scheduler(owner=owner).reschedule_if_recurring(task=t, pet=pet)
-                        if next_task is not None:
-                            st.session_state.next_occurrences[id(t)] = next_task
+                        Scheduler(owner=owner).reschedule_if_recurring(task=t, pet=pet)
                         save_data(owner)
                         st.rerun()
         else:
@@ -290,11 +285,11 @@ if st.button("Generate Today Plan"):
             schedule = scheduler.generate_plan(tasks=incomplete)
 
             # Build a task-id -> pet name lookup for display
-            task_pet = {id(t): pet.name for pet in owner.pets for t in pet.tasks}
+            task_pet = {t.id: pet.name for pet in owner.pets for t in pet.tasks}
 
             def task_row(t):
                 return {
-                    "Pet": task_pet.get(id(t), "-"),
+                    "Pet": task_pet.get(t.id, "-"),
                     "Task Title": t.title,
                     "Time": t.scheduled_time,
                     "Due Date": t.due_date,
@@ -438,9 +433,9 @@ def ai_chat_dialog():
                 if not all_filtered:
                     st.info("Your schedule is completely clear! Is there anything you'd like to add?")
                 else:
-                    task_pet = {id(t): pet.name for pet in owner.pets for t in pet.tasks}
+                    task_pet = {t.id: pet.name for pet in owner.pets for t in pet.tasks}
                     def task_row(t):
-                        return { "Pet": task_pet.get(id(t), "-"), "Task Title": t.title, "Time": t.scheduled_time, "Duration (min)": t.duration_minutes, "Priority": PRIORITY_EMOJI.get(t.priority, t.priority) }
+                        return { "Pet": task_pet.get(t.id, "-"), "Task Title": t.title, "Time": t.scheduled_time, "Duration (min)": t.duration_minutes, "Priority": PRIORITY_EMOJI.get(t.priority, t.priority) }
 
                     if schedule.tasks:
                         st.markdown("**Scheduled:**")

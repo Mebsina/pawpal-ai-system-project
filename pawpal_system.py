@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 from dataclasses import dataclass, field
 from datetime import date, timedelta, datetime
 
@@ -59,6 +60,8 @@ class Task:
     notes: str = ""
     scheduled_time: str = "00:00"  # "HH:MM" format, e.g. "08:30"
     due_date: str = field(default_factory=lambda: date.today().isoformat())  # "YYYY-MM-DD"
+    id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    created_next_task_id: str | None = None
 
     def mark_complete(self) -> None:
         """Mark this task as completed."""
@@ -97,7 +100,7 @@ class Pet:
 @dataclass
 class CompletionRecord:
     """Represents a fixed historical record of a task physically completed."""
-    task_id: int
+    task_id: str
     pet_name: str
     task_title: str
     category: str
@@ -250,12 +253,12 @@ class Scheduler:
 
         if tasks is not None:
             # Map task object -> pet name for the supplied list
-            task_to_pet: dict[int, str] = {}
+            task_to_pet: dict[str, str] = {}
             for pet in self.owner.pets:
                 for t in pet.tasks:
-                    task_to_pet[id(t)] = pet.name
+                    task_to_pet[t.id] = pet.name
             for t in tasks:
-                pet_name = task_to_pet.get(id(t), "Unknown")
+                pet_name = task_to_pet.get(t.id, "Unknown")
                 slots[t.scheduled_time].append(f"{t.title} for {pet_name}")
         else:
             for pet in self.owner.pets:
@@ -318,6 +321,7 @@ class Scheduler:
             scheduled_time=task.scheduled_time,
             due_date=next_due.isoformat(),
         )
+        task.created_next_task_id = next_task.id
         pet.add_task(next_task)
         return next_task
 
@@ -411,6 +415,8 @@ def save_data(owner: Owner) -> None:
                         "notes": t.notes,
                         "scheduled_time": t.scheduled_time,
                         "due_date": t.due_date,
+                        "id": t.id,
+                        "created_next_task_id": t.created_next_task_id,
                     }
                     for t in pet.tasks
                 ],

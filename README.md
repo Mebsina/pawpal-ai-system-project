@@ -18,6 +18,7 @@ PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It 
 - **Dynamic Intent Routing**: The `router.py` parses user intent organically and routes it internally with multi-turn "Context Locking".
 - **Smart Scheduler & Predictive Alerts**: Proactively scans behavioral history to identify gaps and suggests a 'Smart Plan' based on species-specific guidelines.
 - **Contextual Knowledge Base**: Seeded with industry-standard care (Dogs: 30m walk/2x feeding; Cats: play/grooming) to ground AI advice in best practices.
+- **Conversational Pet Management**: Add, remove, or list pets using natural language. Features strict user-confirmation guardrails for any data-altering actions.
 - **JSON Output Sanitization**: Integrated regex-based filtering strictly isolates python dictionaries from LLM conversational filler.
 
 ## Demo
@@ -76,6 +77,8 @@ AI features require Ollama to be running. The app works without it but NL task c
 | Feature | User Input | AI Output |
 |---------|------------|-----------|
 | **NL Task Creation** | "Schedule a 20min feeding for Mochi at 8am" | "Please verify this schedule: **Feeding** for **Mochi** at 08:00... Does this look accurate?" |
+| **Manage Pets** | "Add a 2 year old cat named Snow" | "I've prepared the profile for **Snow**! ... Should I add them to your family?" |
+| **List Pets** | "Which pets do I have?" | "- 🐶 **Mochi**: 3-year-old dog. (Special needs: None)..." |
 | **Proactive Planner** | "What should I schedule?" | "Mochi hasn't had a walk today... I suggest adding a 30min walk at 14:00." |
 | **Predictive Alert** | "Check alerts" | "Everything looks on track! / I noticed Mochi is missing their daily walk. Should we schedule one?" |
 | **Escape Action** | "Nevermind" | *Breaks active intent lock and returns to main menu context.* |

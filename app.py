@@ -339,13 +339,6 @@ if st.button("💬 Ask AI", type="secondary"):
 components.html(
     """
     <div style="display:none;">
-    <style>
-    /* Shift the Streamlit Dialog natively to the right side of the screen */
-    div[data-testid="stDialog"] {
-        margin-left: auto !important;
-        margin-right: 50px !important;
-    }
-    </style>
     <script>
     // Search the parent React virtual DOM for our specific Ask AI button
     const buttons = window.parent.document.querySelectorAll('button');

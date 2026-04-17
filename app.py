@@ -227,6 +227,18 @@ else:
                         st.rerun()
                 else:
                     if row[8].button("Yes", type="secondary", key=f"complete_{id(t)}", use_container_width=True):
+                        # Construct native analytics tracking ledger
+                        from pawpal_system import CompletionRecord
+                        from datetime import datetime
+                        record = CompletionRecord(
+                            task_id=id(t),
+                            pet_name=pet.name,
+                            task_title=t.title,
+                            category=t.category,
+                            timestamp=datetime.now().isoformat()
+                        )
+                        owner.history.append(record)
+
                         next_task = Scheduler(owner=owner).reschedule_if_recurring(task=t, pet=pet)
                         if next_task is not None:
                             st.session_state.next_occurrences[id(t)] = next_task
@@ -351,6 +363,7 @@ def render_quick_menu(use_full_width=True):
     """Abstracts the core quick actions into a reusable DRY rendering container."""
     st.button("📅 Check Plan", use_container_width=use_full_width, on_click=menu_btn_cb, args=("What's on my plan for today?",))
     st.button("🦮 Schedule Task", use_container_width=use_full_width, on_click=menu_btn_cb, args=("Schedule a task for my pet",))
+    st.button("📊 Track Analytics", use_container_width=use_full_width, on_click=menu_btn_cb, args=("How have I been doing with my pets this week?",))
 
 @st.dialog("🐾 PawPal AI Assistant", width="small")
 def ai_chat_dialog():

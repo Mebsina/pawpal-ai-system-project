@@ -9,7 +9,7 @@ import ollama
 import streamlit as st
 
 from config import MODEL_NAME, STRICT_TEMPERATURE, CHAT_TEMPERATURE
-from ai.tools import add_task_tool, check_schedule_tool
+from ai.tools import add_task_tool, check_schedule_tool, get_insights_tool
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,7 @@ def classify_and_route(user_input: str, chat_history: list = None):
         system_prompt = """Classify the following user input into strictly ONE of the categories below:
 - ADD_TASK: The user wants to schedule a new care event (e.g. walk, feed).
 - CHECK_SCHEDULE: The user is asking to view or generate their daily plan.
+- PET_INSIGHTS: The user is asking for analytics, history, or how often they completed tasks.
 - HELP_MENU: The user explicitly types 'menu', requests help, asks what you can do, or asks for options.
 - GENERAL_CHAT: The user is saying hello or asking conversational questions.
 
@@ -65,6 +66,9 @@ Return absolutely nothing but the exact category string."""
     elif "CHECK_SCHEDULE" in intent:
         st.session_state.active_intent = None
         return check_schedule_tool(user_input, chat_history)
+    elif "PET_INSIGHTS" in intent:
+        st.session_state.active_intent = None
+        return get_insights_tool(user_input, chat_history)
     elif "HELP_MENU" in intent:
         return {
             "type": "show_quick_menu",

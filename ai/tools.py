@@ -261,10 +261,7 @@ CRITICAL RULE: NEVER ask the user a follow up question. End your message with a 
         logger.error(f"[get_insights] LLM summarization pipeline failed organically: {e}")
         llm_greeting = "I reliably mapped your analytics arrays, but am having trouble dynamically summarizing them right now via the underlying inference engine."
         
-    return {
-        "type": "show_quick_menu",
-        "message": llm_greeting
-    }
+    return llm_greeting
 
 
 def predictive_alerts_tool(user_input: str, chat_history: list = None):
@@ -313,10 +310,7 @@ CRITICAL INSTRUCTIONS:
         logger.error(f"[predictive_alerts] LLM failed: {e}")
         message = "I noticed some items might need your attention: " + ", ".join(anomalies)
         
-    return {
-        "type": "show_quick_menu",
-        "message": message
-    }
+    return message
 
 
 def suggest_schedule_tool(user_input: str, chat_history: list = None):

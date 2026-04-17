@@ -27,6 +27,15 @@ def classify_and_route(user_input: str, chat_history: list = None):
     # 2. Sequential Intent Lock: Force strict continuity bypassing LLM variance if already trapped in an active tool loop
     locked_intent = st.session_state.get("active_intent")
     
+    # Hardcoded keyword shortcuts to ensure system reliability for critical menus
+    clean_input = user_input.strip().lower()
+    if clean_input in ["menu", "help", "options"]:
+        logger.info(f"[ai/router] System intercepted keyword shortcut: HELP_MENU")
+        return {
+            "type": "show_quick_menu",
+            "message": "I'm your PawPal assistant! You can use these buttons to quickly manage your pets, or just type what you need below:"
+        }
+
     if locked_intent:
         intent = locked_intent
         logger.info(f"[ai/router] System structurally intercepted via Active Context State Lock: {intent}")

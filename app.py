@@ -366,7 +366,7 @@ def confirm_task_cb(owner_ref, pt):
     if pet:
         pet.add_task(task_preview)
         save_data(owner_ref)
-    st.session_state.pending_action = {"type": "show_quick_menu"}
+    st.session_state.pending_action = None
     st.session_state.active_intent = None
     st.session_state.chat_history.append({
         "role": "assistant", 
@@ -393,7 +393,7 @@ def confirm_plan_cb(owner_ref, suggestions):
             count += 1
     
     save_data(owner_ref)
-    st.session_state.pending_action = {"type": "show_quick_menu"}
+    st.session_state.pending_action = None
     st.session_state.active_intent = None
     st.session_state.chat_history.append({
         "role": "assistant", 
@@ -401,7 +401,7 @@ def confirm_plan_cb(owner_ref, suggestions):
     })
 
 def cancel_task_cb():
-    st.session_state.pending_action = {"type": "show_quick_menu"}
+    st.session_state.pending_action = None
     st.session_state.active_intent = None
     st.session_state.chat_history.append({"role": "user", "content": "Nevermind, cancel that task."})
     st.session_state.chat_history.append({"role": "assistant", "content": "No problem! Task scheduling cancelled. What would you like to do instead?"})

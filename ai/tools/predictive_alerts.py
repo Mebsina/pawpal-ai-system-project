@@ -18,10 +18,7 @@ def predictive_alerts_tool(user_input: str, chat_history: list = None):
     registered_pets = [p.name for p in owner.pets]
     
     if not anomalies:
-        return {
-            "type": "show_quick_menu",
-            "message": "Everything looks on track! I haven't detected any missed routines or unusual patterns for your pets."
-        }
+        return "Everything looks on track! I haven't detected any missed routines or unusual patterns for your pets."
         
     system_prompt = f"""You are PawPal, a precise pet care assistant.
 Your goal is to summarize the following detected anomalies.

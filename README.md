@@ -254,16 +254,18 @@ AI features require Ollama to be running. The app works without it but NL task c
 - **Intent Reliability**: Proves the system correctly routes diverse natural language queries to the proper internal tools, while maintaining strict context locks during multi-turn interactions and keyword-based escapes.
 - **Agentic Refinement**: Verifies the 5-turn self-correction loop in the Smart Planner, ensuring the AI agent identifies its own scheduling errors and refines them until a high-confidence care plan is achieved.
 - **Safety & Grounding**: Confirms that data-modifying actions (like removing a pet) trigger mandatory user-confirmation menus and that AI suggestions are strictly grounded in pet-specific care guidelines.
-- **Payload Resiliency**: Tests the system's ability to extract structured data from "noisy" LLM output and handle malformed response formats without crashing the UI.
+- **Payload Resiliency**: Tests the system's ability to extract structured data from "noisy" LLM output and handle malformed response formats using the hardened regex sanitizer.
+- **Automated Validation**: Confirms that AI outputs are strictly checked against schemas and content guardrails (keyword scanning) before being processed by the application core.
+- **Reliability Auditing**: Verifies the lifecycle of the `ReliabilityAuditor`, which quantifies system health by aggregating **Confidence Scores** (0.0 to 1.0) and success rates for the system evaluation dashboard.
 - **Infrastructure**: Uses `unittest.mock` and a synchronized `SessionState` fixture in `conftest.py` to isolate tests from local Ollama and Streamlit states for deterministic execution.
-- **Confidence Scoring**: Intent routing and data extraction modules rate certainty (0.0 to 1.0), recorded in system logs for quantifiable reliability auditing.
-- **Documentation Standard**: All 91 test cases feature standardized header documentation for improved auditability.
+- **Documentation Standard**: All **97 test cases** feature standardized header documentation for improved auditability.
 
+### System Capabilities Summary
 - **Proactive Anomaly Detection**: `AnalyticsEngine` identifies missed recurring tasks and triggers conversational alerts.
 - **Batch Plan Execution**: The AI assistant processes multiple pet requirements simultaneously and applies updates via batch confirmation.
-- **Human evaluation**: Manually verified that "Smart Plan" suggestions respect species guidelines and historical patterns.
+- **Human Evaluation**: Manually verified that "Smart Plan" suggestions respect species guidelines and historical patterns.
 
-*Summary: A total of **91 out of 91 tests** are passing. The AI service layer is fully isolated and verified via robust mocking for deterministic execution.*
+*Summary: A total of **97 out of 97 tests** are passing. The AI service layer is fully isolated and verified via robust mocking for deterministic execution.*
 
 ## Reflection
 

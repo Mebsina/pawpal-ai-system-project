@@ -567,9 +567,6 @@ def ai_chat_dialog():
                     if schedule.unscheduled:
                         st.error(f"{len(schedule.unscheduled)} task(s) could not fit in your {owner.available_minutes}-minute active time budget.")
                         st.table([task_row(t) for t in schedule.unscheduled])
-                
-                st.write("Is there anything else you would like to do?")
-                render_quick_menu(use_full_width=True)
 
 
 # Append the button at the document root

@@ -77,12 +77,16 @@ Return strictly a JSON dictionary featuring the following format:
     if len(pet_names) == 1 and not pet_name:
         pet_name = pet_names[0]
         
-    # Conversational Follow-Up Trigger Check
+    # Conversational Follow-Up Trigger Check dynamically integrated with structured UI payloads
     if not pet_name:
-        return f"Which pet is this schedule adjustment intended for ({', '.join(pet_names)})?"
+        return {
+            "type": "selection_menu",
+            "message": "Which pet is this schedule adjustment intended for?",
+            "options": pet_names
+        }
         
     if not title or title.lower() in ["task", "null"]:
-        return f"I can definitely set that up for {pet_name}. What specific activity or task are we scheduling?"
+        return f"I can definitely set that up for {pet_name}. What specific activity or task are we scheduling? (e.g., '15 minute walk at 14:00' or 'feeding in 5 minutes')"
         
     if not scheduled_time:
         tentative_title = title or "task"

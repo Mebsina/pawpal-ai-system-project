@@ -43,8 +43,8 @@ if "next_occurrences" not in st.session_state:
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = [{"role": "assistant", "content": "Hi! How can I help you and your pets today?"}]
 
-if "pending_task" not in st.session_state:
-    st.session_state.pending_task = None
+if "pending_action" not in st.session_state:
+    st.session_state.pending_action = None
 
 owner = st.session_state.owner
 
@@ -310,95 +310,87 @@ if st.button("Generate Today Plan"):
 # AI Chat Hub Integration (Floating Action Button)
 # ---------------------------------------------------------------------------
 
+def confirm_task_cb(owner_ref, pt):
+    """Background callback locking in schedule data inherently bypassing redraw chains."""
+    task_preview = pt["task_preview"]
+    pet = next((p for p in owner_ref.pets if p.name == pt["pet_name"]), None)
+    if pet:
+        pet.add_task(task_preview)
+        save_data(owner_ref)
+    st.session_state.pending_action = None
+    st.session_state.chat_history.append({"role": "assistant", "content": f"Task confirmed! I have securely locked in '{task_preview.title}'."})
+
+def cancel_task_cb():
+    st.session_state.pending_action = None
+    st.session_state.chat_history.append({"role": "assistant", "content": "Task aborted! Let me know if you need to schedule something else."})
+
+def sel_menu_cb(opt):
+    st.session_state.pending_action = None
+    st.session_state.user_prompt_override = opt
+
+def menu_btn_cb(opt):
+    st.session_state.user_prompt_override = opt
+
 @st.dialog("🐾 PawPal AI Assistant", width="small")
 def ai_chat_dialog():
     # Structural isolation container enforcing an internal scrollbar algorithm without breaking screen bounds
     msg_container = st.container(height=550)
     
+    # 1. Grab native callback overrides bypassing visual extraction requirements logically
+    user_prompt = st.session_state.pop("user_prompt_override", None)
+    
+    # Merge standard typing logic seamlessly
+    if prompt := st.chat_input("Ask PawPal to schedule a walk, check a plan, etc."):
+        user_prompt = prompt
+        st.session_state.pending_action = None
+
+    # Unified pipeline purely operating securely via top-to-bottom matrix topology
     with msg_container:
+        # Step 1: Draw absolute truth of history sequentially
         for msg in st.session_state.chat_history:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
                 
-        # Construct the Suggestion Menu exclusively when history is empty using a destructible placeholder
-        menu_placeholder = st.empty()
-        user_prompt = None
-        
-        if len(st.session_state.chat_history) == 1:
-            with menu_placeholder.container():
-                if st.button("📅 Check Plan", use_container_width=False):
-                    user_prompt = "What's on my plan for today?"
-                if st.button("🦮 Schedule Task", use_container_width=False):
-                    user_prompt = "Schedule a task for my pet"
-                if st.button("❓ User Guide", use_container_width=False):
-                    user_prompt = "What can you help me with?"
-
-    # Merge standard typing logic with our menu clicks
-    if prompt := st.chat_input("Ask PawPal to schedule a walk, check a plan, etc."):
-        user_prompt = prompt
-
-    # Unified pipeline for evaluating any user intent
-    if user_prompt:
-        # Instantly annihilate the menu buttons from the UI layout dynamically before proceeding
-        menu_placeholder.empty()
-        
-        # Save user message to state
-        st.session_state.chat_history.append({"role": "user", "content": user_prompt})
-        
-        # Visually inject newly generated messages DIRECTLY into the upper container (msg_container)
-        with msg_container:
+        # Step 2: Draw the Quick Menu perfectly inline identically ONLY when history empty
+        if len(st.session_state.chat_history) == 1 and not user_prompt:
+            st.button("📅 Check Plan", use_container_width=False, on_click=menu_btn_cb, args=("What's on my plan for today?",))
+            st.button("🦮 Schedule Task", use_container_width=False, on_click=menu_btn_cb, args=("Schedule a task for my pet",))
+            st.button("❓ User Guide", use_container_width=False, on_click=menu_btn_cb, args=("What can you help me with?",))
+                
+        # Step 3: Run the Engine organically at visual generation frame
+        if user_prompt:
+            st.session_state.chat_history.append({"role": "user", "content": user_prompt})
             with st.chat_message("user"):
                 st.markdown(user_prompt)
                 
-            # Route to AI and conditionally draw the spinner securely above the input
             with st.chat_message("assistant"):
                 with st.spinner("Responding..."):
                     raw_response = classify_and_route(user_prompt, st.session_state.chat_history)
                     
-                    # Intercept structural dictionaries to block DB committing gracefully
-                    if isinstance(raw_response, dict) and raw_response.get("type") == "task_confirmation":
-                        st.session_state.pending_task = raw_response
+                    if isinstance(raw_response, dict) and raw_response.get("type") in ["task_confirmation", "selection_menu"]:
+                        st.session_state.pending_action = raw_response
                         response_text = raw_response["message"]
                     else:
                         response_text = raw_response
                         
                 st.markdown(response_text)
                 
-        # Save assistant message to state
-        st.session_state.chat_history.append({"role": "assistant", "content": response_text})
+            st.session_state.chat_history.append({"role": "assistant", "content": response_text})
 
-    # Structural UI intercept specifically managing dynamic AI Confirmations
-    if st.session_state.pending_task:
-        pt = st.session_state.pending_task
-        task_preview = pt["task_preview"]
-        
-        st.info(f"**Proposed Schedule:** {task_preview.title} for {pt['pet_name']} at {task_preview.scheduled_time}")
-        c1, c2 = st.columns(2)
-        
-        # Lock in manual database operations strictly based on user authorization
-        if c1.button("✅ Confirm", use_container_width=True):
-            owner = st.session_state.owner
-            pet = next((p for p in owner.pets if p.name == pt["pet_name"]), None)
-            if pet:
-                pet.add_task(task_preview)
-                save_data(owner)
-                st.session_state.pending_task = None
+        # Step 4: Structurally attach conditional widgets EXACTLY beneath the dynamic messages natively!
+        if st.session_state.pending_action:
+            action = st.session_state.pending_action
+            if action["type"] == "task_confirmation":
+                pt = action
+                task_preview = pt["task_preview"]
+                st.info(f"**Proposed Schedule:** {task_preview.title} for {pt['pet_name']} at {task_preview.scheduled_time}")
                 
-                success_msg = f"Task confirmed! I have securely locked in '{task_preview.title}'."
-                st.session_state.chat_history.append({"role": "assistant", "content": success_msg})
-                # Visually update the UI instantly without forcing a destructive rerun
-                with msg_container:
-                    with st.chat_message("assistant"):
-                        st.write(success_msg)
-                        
-        if c2.button("❌ Cancel", use_container_width=True):
-            st.session_state.pending_task = None
-            cancel_msg = "Task aborted! Let me know if you need to schedule something else."
-            st.session_state.chat_history.append({"role": "assistant", "content": cancel_msg})
-            with msg_container:
-                with st.chat_message("assistant"):
-                    st.write(cancel_msg)
-        # The dialog natively resets on its own, ensuring the input stays anchored, with no full-app rerun required
+                st.button("✅ Confirm", use_container_width=True, on_click=confirm_task_cb, args=(st.session_state.owner, pt))
+                st.button("❌ Cancel", use_container_width=True, on_click=cancel_task_cb)
+                
+            elif action["type"] == "selection_menu":
+                for opt in action["options"]:
+                    st.button(opt, use_container_width=False, on_click=sel_menu_cb, args=(opt,))
 
 
 # Append the button at the document root

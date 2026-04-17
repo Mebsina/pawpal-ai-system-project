@@ -96,31 +96,26 @@ AI features require Ollama to be running. The app works without it but NL task c
 ## Testing Summary
 
 ### Core System Tests
-- **Automated tests**: 28 tests passing (`pytest tests/`). Validated areas include:
-  - **Core Logic** (`tests/core/`):
+- **Automated tests**: 28 tests passing (`pytest tests/core/`). Validated areas include:
     - **Models**: `Task.mark_complete`, `Pet.add_task`, `Owner.add_pet`.
     - **Scheduler**: `generate_plan`, `detect_time_conflicts`, `reschedule_if_recurring`, `filter_tasks`.
     - **AnalyticsEngine**: `get_unusual_patterns`, `get_recent_history`.
     - **Persistence**: `save_data` and `load_data` (via `core/persistence.py`).
-  - **AI Utilities** (`tests/ai/`):
-    - **Output Sanitization**: JSON extraction from markdown.
-    - **Grounding**: Temperature checks and tool routing helpers.
 
-### AI Component Tests
-- **Status**: Initial utilities implemented; core AI logic testing planned.
-- **Current Coverage**: 3 tests passing (`pytest tests/test_utils.py`) for `extract_json` (LLM response sanitization).
-- **Planned Work**:
-  - **Intent Routing Validation**: Verification of `router.py` classification across varied natural language samples.
-  - **Confirmation Guardrails**: Ensuring data-altering tools cannot execute without explicit terminal confirmation.
-  - **Grounding Verification**: Tests to ensure AI suggestions are strictly based on the available pet database.
+### AI Service Layer Tests
+- **Automated tests**: Comprehensive mock-driven suite implemented in `tests/ai/`. Validated areas include:
+    - **Intent Routing**: Verification of `router.py` classification and context locking logic.
+    - **Task Extraction**: Multi-parameter parsing and conflict detection within AI tools.
+    - **Pet Management**: Conversational Add/Remove/List logic validation with user guardrails.
+    - **Output Sanitization**: Robust JSON extraction from varied LLM response formats.
+- **Infrastructure**: Uses `unittest.mock` to isolate tests from local Ollama and Streamlit session states for deterministic execution.
+- **Integration Testing**: Provided `scratch/test_real_ai.py` utility for checking local model connectivity and response quality.
 
 - **Proactive Anomaly Detection**: `AnalyticsEngine` successfully identifies missed recurring tasks and triggers conversational alerts.
 - **Batch Plan Execution**: The AI assistant can process multiple pet requirements simultaneously and apply batch updates to the schedule upon user confirmation.
 - **Human evaluation**: Manually verified that "Smart Plan" suggestions respect species guidelines and historical completion patterns.
 
-*Summary: Core system logic is robustly tested. AI testing effort is focused on intent reliability and data safety guardrails.*
-
-*Summary: All AI milestones complete. The system now acts as a proactive agent rather than a reactive scheduler.*
+*Summary: Both the core logic and the AI service layer are robustly tested using a combination of unit tests and mock-driven service verification.*
 
 ## Reflection
 

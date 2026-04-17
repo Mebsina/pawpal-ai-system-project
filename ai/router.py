@@ -19,6 +19,7 @@ from .tools import (
     add_pet_tool,
     remove_pet_tool
 )
+from .utils import extract_json, ReliabilityAuditor, validate_schema, check_restricted_keywords
 
 logger = logging.getLogger(__name__)
 
@@ -94,13 +95,21 @@ ABSOLUTELY NO CONVERSATIONAL TEXT. Return ONLY raw valid JSON."""
             )
             # Use the extraction utility to handle potential boilerplate
             classification = extract_json(response.message.content)
-            if classification:
+            
+            # Automated Validation of Intent Payload
+            is_valid = validate_schema(classification, ["intent", "confidence"])
+            if is_valid:
+                # Content Guardrail check
+                check_restricted_keywords(response.message.content)
+                
                 intent = str(classification.get("intent", "GENERAL_CHAT")).strip().upper()
                 confidence = classification.get("confidence", 0.0)
+                ReliabilityAuditor.record_metric("Intent_Classification", confidence=confidence)
                 logger.info(f"[ai/router] Intent: {intent}, Confidence: {confidence}")
             else:
                 intent = "GENERAL_CHAT"
-                logger.warning(f"[ai/router] Failed to parse classification JSON: {response.message.content}")
+                ReliabilityAuditor.record_metric("Intent_Classification", confidence=0.0, success=False)
+                logger.warning(f"[ai/router] Validation failure for classification JSON.")
         except Exception as e:
             logger.warning(f"[ai/router] Local Ollama classification failed: {e}")
             return "I am currently unable to interpret requests. Please verify the local AI engine is running."

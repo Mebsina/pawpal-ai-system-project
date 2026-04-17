@@ -3,7 +3,7 @@ import ollama
 from datetime import datetime
 from config import MODEL_NAME, STRICT_TEMPERATURE
 from core import Task, save_data, load_data, Scheduler
-from ai.utils import extract_json
+from ai.utils import extract_json, ReliabilityAuditor, validate_schema
 
 logger = logging.getLogger(__name__)
 
@@ -71,10 +71,14 @@ Output: {{"title": null, "pet_name": null, "duration_minutes": null, "priority":
         
     extracted_data = extract_json(response.message.content)
     
-    if not extracted_data:
+    # Automated Structural Validation
+    required = ["title", "scheduled_time", "confidence"]
+    if not validate_schema(extracted_data, required):
+        ReliabilityAuditor.record_metric("Task_Extraction", confidence=0.0, success=False)
         return "The natural language extractor failed to assemble a valid task. Could you rephrase the request?"
         
     confidence = extracted_data.get("confidence", 0.0)
+    ReliabilityAuditor.record_metric("Task_Extraction", confidence=confidence)
     logger.info(f"[ai/tools/add_task] Extraction Confidence: {confidence}")
         
     pet_name = extracted_data.get("pet_name")

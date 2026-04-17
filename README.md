@@ -19,7 +19,10 @@ PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It 
 - **Smart Scheduler & Predictive Alerts**: Proactively scans behavioral history to identify gaps and suggests a 'Smart Plan' based on species-specific guidelines. Uses an agentic multi-turn loop (up to 5 refinement turns) with confidence scoring (target 0.9+), strict HH:MM time validation, per-pet baseline care enforcement (feeding + activity), same-category proximity checks, and daily time-budget awareness. Results are displayed grouped by pet in a chronological timeline.
 - **Contextual Knowledge Base**: Seeded with industry-standard care (Dogs: 30m walk/2x feeding; Cats: play/grooming) to ground AI advice in best practices.
 - **Conversational Pet Management**: Add, remove, or list pets using natural language. Features strict user-confirmation guardrails for any data-altering actions.
-- **JSON Output Sanitization**: Integrated regex-based filtering strictly isolates python dictionaries from LLM conversational filler.
+- **JSON Output Sanitization**: Integrated regex-based filtering strictly isolates python dictionaries from LLM conversational filler. Supports multiple nested blocks and malformed markdown resilience.
+- **Automated Schema Validation**: Strict structural checks ensure AI-generated payloads contain all mandatory keys and non-null values before execution.
+- **Content Guardrails**: Scans AI output for restricted keywords (e.g., medical advice, unauthorized diagnoses) to ensure advice is strictly grounded in pet care best practices.
+- **Automated Reliability Auditing**: A dedicated persistence module tracks intent classification confidence, extraction accuracy, and agentic loop efficiency, providing real-time "Evaluation Metrics" on the system dashboard.
 
 ## Demo
 
@@ -179,6 +182,7 @@ flowchart LR
         Agent["<b>Agent</b><br/>router.py + tools/"]
         Retriever["<b>Retriever</b><br/>persistence.py"]
         Evaluator["<b>Evaluator / Tester</b><br/>JSON Sanitizer +<br/>Logic Validation"]
+        Auditor["<b>Reliability Auditor</b><br/>utils.py +<br/>metrics.json"]
     end
     
     Retriever -- "Fetches Data Context" --> Agent
@@ -190,6 +194,9 @@ flowchart LR
     
     HumanCheck -- "Confirm" --> State([Updated JSON State])
     HumanCheck -- "Reject / Rephrase" --> Input
+
+    Agent -.->|"Logs Statistics"| Auditor
+    Evaluator -.->|"Logs Success/Fail"| Auditor
 ```
 
 | Component | Role | Logic |
@@ -197,6 +204,7 @@ flowchart LR
 | **Retriever** | Data Fetching | Loads pet profiles, history, and schedule from `pawpal_data.json` into AI context. |
 | **Agent** | Orchestration | Interprets intent and coordinates tool execution with the local LLM. |
 | **Evaluator / Tester** | Self-Correction | Validates AI payloads for JSON integrity, scheduling conflicts, and care guidelines. |
+| **Reliability Auditor** | **Evaluation & Metrics** | Quantifies AI performance by tracking confidence scores and multi-turn refinement efficiency. |
 | **Human Check** | Decision Guard | Final verification step where the owner approves or rejects AI Proposals. |
 
 ## Setup Instructions

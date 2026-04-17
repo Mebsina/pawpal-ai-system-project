@@ -5,7 +5,7 @@ from dataclasses import asdict
 from datetime import datetime
 from config import MODEL_NAME, STRICT_TEMPERATURE, CHAT_TEMPERATURE, STANDARD_CARE_GUIDELINES
 from core import load_data, AnalyticsEngine
-from ai.utils import extract_json
+from ai.utils import extract_json, ReliabilityAuditor, validate_schema, check_restricted_keywords
 
 logger = logging.getLogger(__name__)
 
@@ -87,9 +87,15 @@ ABSOLUTELY NO CONVERSATIONAL TEXT outside the JSON."""
                 }
             )
             extracted_data = extract_json(response.message.content)
-            if not extracted_data:
-                logger.warning(f"[suggest_schedule] Turn {turn+1} failed to extract JSON.")
+            
+            # Automated Validation of Agentic Proposals
+            required = ["summary", "suggestions", "confidence"]
+            if not validate_schema(extracted_data, required):
+                logger.warning(f"[suggest_schedule] Turn {turn+1} failed schema validation.")
                 continue
+            
+            # Content Guardrail check
+            check_restricted_keywords(response.message.content)
             
             suggestions = extracted_data.get("suggestions", [])
             valid_suggestions = []
@@ -219,6 +225,7 @@ ABSOLUTELY NO CONVERSATIONAL TEXT outside the JSON."""
                     "message": f"Here is your smart plan: {task_count} task(s) for {pet_count} pet(s).",
                     "suggestions": valid_suggestions
                 }
+                ReliabilityAuditor.record_metric("Agentic_Planning", confidence=confidence, turns=turn+1, success=True)
                 break
 
             if turn == MAX_TURNS - 1:
@@ -231,6 +238,7 @@ ABSOLUTELY NO CONVERSATIONAL TEXT outside the JSON."""
                     "message": f"Here is your smart plan: {task_count} task(s) for {pet_count} pet(s).\n\n**Note:** Some issues remain:\n{warnings}",
                     "suggestions": valid_suggestions
                 }
+                ReliabilityAuditor.record_metric("Agentic_Planning", confidence=confidence, turns=MAX_TURNS, success=False)
                 break
             else:
                 # Feedback loop to improve the next turn

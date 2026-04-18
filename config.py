@@ -34,6 +34,24 @@ PRIORITY_ORDER: dict[str, int] = {
     "high": 3,
 }
 
+# --- UI Constants ---
+PRIORITY_EMOJI = {"high": "🔴", "medium": "🟡", "low": "🟢"}
+CATEGORY_EMOJI = {
+    "walk": "🦮",
+    "feeding": "🍽️",
+    "feed": "🍽️",
+    "meds": "💊",
+    "medication": "💊",
+    "grooming": "✂️",
+    "groom": "✂️",
+    "enrichment": "🎾",
+    "play": "🎮",
+    "training": "🎓",
+    "vet": "🏥",
+    "bath": "🛁",
+}
+SPECIES_EMOJI = {"dog": "🐶", "cat": "🐱", "other": "🐾"}
+
 # --- Pet Care Guidelines ---
 # Standard industry baselines used by the AI when suggesting plans.
 STANDARD_CARE_GUIDELINES = {

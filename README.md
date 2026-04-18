@@ -47,41 +47,44 @@ flowchart TD
     User([User])
 
     subgraph VC["View + Controller"]
-        UI["app.py<br/>Unified Chat Interface"]
-    end
+    App["app.py<br/>Orchestrator"]
+    Views["views/<br/>Modular Components"]
+end
 
-    subgraph AI["AI Service Layer"]
-        Router["ai/router.py<br/>Intent Classification"]
-        Tools["ai/tools/<br/>Granular Execution"]
-        Util["ai/utils.py<br/>JSON Sanitization"]
-    end
+subgraph AI["AI Service Layer"]
+    Router["ai/router.py<br/>Intent Classification"]
+    Tools["ai/tools/<br/>Granular Execution"]
+    Util["ai/utils.py<br/>JSON Sanitization"]
+end
 
-    subgraph Core["Core Model"]
-        Engine["core/<br/>Package"]
-    end
+subgraph Core["Core Model"]
+    Engine["core/<br/>Package"]
+end
 
-    subgraph Data["Data Layer"]
-        Store["core/persistence.py<br/>+ data/pawpal_data.json"]
-    end
+subgraph Data["Data Layer"]
+    Store["core/persistence.py<br/>+ data/pawpal_data.json"]
+end
 
-    Ollama([Ollama / llama3.2:3b])
+Ollama([Ollama / llama3.2:3b])
 
-    User <-->|"Natural language<br/>over chat"| UI
-    UI <-->|"Async Streaming Chunks"| Router
-    Router <-->|Determine Action| Ollama
-    Router --> Tools
-    Tools <-->|Extract JSON\nvia Utility| Util
-    Util <-->|Generates args| Ollama
-    Tools -->|Silently apply changes| Engine
-    Engine <--> Store
+User <-->|"Natural language<br/>over chat"| App
+App <--> Views
+App <-->|"Async Actions"| Router
+Router <-->|Determine Action| Ollama
+Router --> Tools
+Tools <-->|Extract JSON\nvia Utility| Util
+Util <-->|Generates args| Ollama
+Tools -->|Silently apply changes| Engine
+Engine <--> Store
 
     style Ollama fill:#cfe2f3
 ```
 
 | Layer | File(s) | Responsibility |
 |-------|---------|---------------|
-| Configuration | `config.py` | Centralized system instructions, pet care guidelines, and LLM properties |
-| View + Controller | `app.py` | Streamlit asynchronous streaming chat interface, batch plan confirmation UI |
+| Configuration | `config.py` | Centralized system instructions, pet care guidelines, and UI constants (emojis) |
+| Layout Orchestrator | `app.py` | Streamlit entry point, session state initialization, and component coordination |
+| View Components | `views/` package | Modular UI sections: sidebar, owner/pet forms, task dashboard, and AI chat hub |
 | AI Service Layer | `ai/router.py`, `ai/tools/`, `ai/utils.py` | Intent parsing, zero-temperature grounding, tool interactions, and markdown sanitization |
 | Core / Model | `core/` package (`models`, `scheduler`, `analytics`) | Data model, scheduler logic, and anomaly detection |
 | Data Layer | `core/persistence.py`, `data/pawpal_data.json` | Automated JSON persistence and completion history |
@@ -101,8 +104,10 @@ flowchart LR
     end
 
     Engine["core/<br/>Package"]
+    App["app.py<br/>(Orchestrator)"]
 
-    Ollama <--> Router
+    App <--> Router
+    Router <-->|Determine Action| Ollama
     Router -->|Determines tool| Tools
     Tools -->|Requests JSON| Ollama
     Ollama -->|Conversational Output| Util

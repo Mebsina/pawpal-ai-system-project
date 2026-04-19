@@ -7,7 +7,7 @@ from ai.utils import extract_json
 
 logger = logging.getLogger(__name__)
 
-def check_schedule_tool(user_input: str, chat_history: list = None):
+def schedule_tool(user_input: str, chat_history: list = None):
     """
     Analyzes mathematical scheduling bounds and provides a humanized visual wrapper 
     formatted as JSON with confidence scoring.
@@ -56,12 +56,12 @@ ABSOLUTELY NO CONVERSATIONAL TEXT outside the JSON. Return ONLY raw valid JSON."
         extracted_data = extract_json(response.message.content)
         if extracted_data:
             confidence = extracted_data.get("confidence", 0.0)
-            logger.info(f"[ai/tools/check_schedule] Summary Confidence: {confidence}")
+            logger.info(f"[ai/tools/schedule] Summary Confidence: {confidence}")
             llm_greeting = extracted_data.get("message", "Here is your plan for today:")
         else:
             llm_greeting = response.message.content.strip()
     except Exception as e:
-        logger.error(f"[check_schedule] LLM summarization pipeline failed: {e}")
+        logger.error(f"[schedule] LLM summarization pipeline failed: {e}")
         llm_greeting = "Here is your completely optimized plan for today:"
         
     return {

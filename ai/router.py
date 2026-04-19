@@ -11,10 +11,9 @@ import streamlit as st
 from config import MODEL_NAME, STRICT_TEMPERATURE, CHAT_TEMPERATURE
 from .tools import (
     add_task_tool,
-    check_schedule_tool,
-    get_insights_tool,
-    predictive_alerts_tool,
-    suggest_schedule_tool,
+    schedule_tool,
+    status_report_tool,
+    planner_tool,
     list_pets_tool,
     add_pet_tool,
     remove_pet_tool
@@ -127,16 +126,16 @@ ABSOLUTELY NO CONVERSATIONAL TEXT. Return ONLY raw valid JSON."""
         return remove_pet_tool(user_input, chat_history)
     elif "CHECK_SCHEDULE" in intent:
         st.session_state.active_intent = None
-        return check_schedule_tool(user_input, chat_history)
+        return schedule_tool(user_input, chat_history)
     elif "SUGGEST_SCHEDULE" in intent:
         st.session_state.active_intent = None
-        return suggest_schedule_tool(user_input, chat_history)
+        return planner_tool(user_input, chat_history)
     elif "PET_INSIGHTS" in intent:
         st.session_state.active_intent = None
-        return get_insights_tool(user_input, chat_history)
+        return status_report_tool(user_input, chat_history)
     elif "CHECK_ALERTS" in intent:
         st.session_state.active_intent = None
-        return predictive_alerts_tool(user_input, chat_history)
+        return status_report_tool(user_input, chat_history)
     elif "LIST_PETS" in intent:
         st.session_state.active_intent = None
         return list_pets_tool(user_input, chat_history)

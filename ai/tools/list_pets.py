@@ -14,27 +14,36 @@ def list_pets_tool(user_input: str, chat_history: list = None):
     owner = load_data()
     
     if not owner.pets:
-        return "You haven't registered any pets yet! You can add one using the 'Add a Pet' form on the main dashboard."
+        return {
+            "type": "pet_management_menu",
+            "message": "You haven't registered any pets yet! Would you like to add one now?",
+            "confidence": 1.0
+        }
         
     pet_data = []
     for pet in owner.pets:
-        emoji = "🐶" if pet.species == "dog" else "🐱" if pet.species == "cat" else "🐾"
         needs_str = ", ".join(pet.special_needs) if pet.special_needs else "None"
-        pet_data.append(f"- {emoji} **{pet.name}**: {pet.age}-year-old {pet.species}. (Special needs: {needs_str})")
+        pet_data.append(f"Pet: {pet.name}, Age: {pet.age}, Species: {pet.species}, Special Needs: {needs_str}")
         
     system_prompt = f"""You are PawPal, a warm and helpful pet care assistant.
 The user is asking about their pets. 
-Based strictly on the data below, provide a friendly summary of all their registered pets.
+
+Based strictly on the data below, provide a warm, conversational summary of the pets in a single NATURAL PARAGRAPH.
+
+CRITICAL RULES:
+1. DO NOT use bullet points or lists.
+2. Group pets by species (dogs, cats, etc.) to make the response flow naturally.
+3. Mention each pet's name, age, and any special needs naturally. BOLD each pet's name (e.g., **Name**).
+4. ABSOLUTELY NO random emojis or symbols (like ✓, 👛, or 𞤩). 
+5. Use ONLY the data provided below:
 
 REGISTERED PETS:
 {chr(10).join(pet_data)}
 
-CRITICAL RULES:
-1. Use a clean, bulleted list for the pets using the provided emojis.
-2. End your message by asking if they would like to schedule a specific task.
-3. Return strictly a JSON dictionary:
-   - "message": (string) Your conversational summary.
-   - "confidence": (float) A score between 0.0 and 1.0 representing your certainty.
+6. END your message by asking if they would like to add/remove a pet or schedule a task.
+7. Return strictly a JSON dictionary:
+   - "message": (string) Your natural paragraph response with bolded names.
+   - "confidence": (float) A score between 0.0 and 1.0.
 
 ABSOLUTELY NO CONVERSATIONAL TEXT outside the JSON. Return ONLY raw valid JSON."""
 
@@ -51,9 +60,21 @@ ABSOLUTELY NO CONVERSATIONAL TEXT outside the JSON. Return ONLY raw valid JSON."
         if extracted_data:
             confidence = extracted_data.get("confidence", 0.0)
             logger.info(f"[ai/tools/list_pets] Summary Confidence: {confidence}")
-            return extracted_data.get("message", "Here are your pets!")
-        return response.message.content.strip()
+            return {
+                "type": "pet_management_menu",
+                "message": extracted_data.get("message", "Here are your pets!"),
+                "confidence": confidence
+            }
+        return {
+            "type": "pet_management_menu",
+            "message": response.message.content.strip(),
+            "confidence": 0.0
+        }
     except Exception as e:
         logger.error(f"[list_pets_tool] LLM failed: {e}")
         fallback = "I found your pets in the system:\n" + "\n".join(pet_data)
-        return fallback
+        return {
+            "type": "pet_management_menu",
+            "message": fallback,
+            "confidence": 0.0
+        }

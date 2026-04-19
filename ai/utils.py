@@ -41,8 +41,8 @@ class ReliabilityAuditor:
             }
             metrics.append(new_entry)
 
-            # Limit history to last 100 entries for performance
-            metrics = metrics[-100:]
+            # Limit history to last 1000 entries for performance
+            metrics = metrics[-1000:]
 
             with open(cls.METRICS_FILE, "w") as f:
                 json.dump(metrics, f, indent=2)

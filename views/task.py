@@ -66,8 +66,10 @@ def render_task_manager(owner):
     # Real-time data sanitization loop to surgically repair any corrupted saved states during runtime
     for pet in owner.pets:
         for t in pet.tasks:
-            t.priority = t.priority or "medium"
-            t.duration_minutes = t.duration_minutes or 15
+            t.priority = (t.priority.lower() if t.priority else "medium")
+            # Ensure duration is a positive integer; default to 15m for missing or invalid data
+            if not t.duration_minutes or t.duration_minutes < 1:
+                t.duration_minutes = 15
             t.category = t.category or "walk"
             t.title = t.title or "Task"
             if len(t.scheduled_time) > 5:
@@ -75,7 +77,7 @@ def render_task_manager(owner):
 
     # Capture all active tasks across every pet for unified dashboard indexing
     all_tasks_with_pet = [(pet, t) for pet in owner.pets for t in pet.tasks]
-
+    st.divider()
     if all_tasks_with_pet:
         st.markdown(f"**Task Dashboard** ({len(all_tasks_with_pet)} tasks across {len(owner.pets)} pets)")
 
@@ -90,10 +92,9 @@ def render_task_manager(owner):
             all_priorities = ["All"] + sorted({t.priority for _, t in all_tasks_with_pet})
             filter_priority = st.selectbox("Filter by priority", all_priorities, key="task_filter")
         with col_toggle:
-            st.write("") # spacer
             hide_completed = st.checkbox("Hide Done", value=False)
 
-        tab_today, tab_upcoming, tab_all = st.tabs(["📅 Today", "🔜 Upcoming", "📜 All Tasks"])
+        tab_today, tab_upcoming, tab_all = st.tabs(["Today", "Upcoming", "All Tasks"])
         today_iso = ddate.today().isoformat()
         
         def render_pet_grouped_tasks(task_list, key_prefix="all"):
@@ -114,7 +115,7 @@ def render_task_manager(owner):
             if sort_by == "Time":
                 filtered = sorted(filtered, key=lambda pt: pt[1].scheduled_time)
             elif sort_by == "Priority (high first)":
-                filtered = sorted(filtered, key=lambda pt: -PRIORITY_ORDER[pt[1].priority])
+                filtered = sorted(filtered, key=lambda pt: -PRIORITY_ORDER[pt[1].priority.lower()])
             else:
                 filtered = sorted(filtered, key=lambda pt: pt[1].duration_minutes)
 
@@ -128,41 +129,64 @@ def render_task_manager(owner):
                     # Re-extracting group because the groupby iterator is exhausted upon first access
                     pet_tasks = [ (p,t) for p,t in filtered if p.name == pet_name ]
                     
-                    header = st.columns([1.5, 1, 1.5, 1, 1, 1.2, 1, 1])
-                    labels = ["Task", "Time", "Due Date", "Duration", "Priority", "Category", "Frequency", "Done"]
-                    for col, label in zip(header, labels):
-                        col.caption(f"**{label}**")
+                    # Build data for the editor to leverage st.data_editor's premium formatting
+                    editor_data = []
+                    for p, t in pet_tasks:
+                        editor_data.append({
+                            "Done": t.completion_status,
+                            "Task": t.title,
+                            "Time": t.scheduled_time,
+                            "Due Date": t.due_date,
+                            "Duration": f"{t.duration_minutes}m",
+                            "Priority": PRIORITY_EMOJI.get(t.priority.lower(), t.priority),
+                            "Category": f"{CATEGORY_EMOJI.get(t.category.lower(), '')} {t.category}".strip(),
+                            "Frequency": t.frequency
+                        })
                     
-                    for pt_pet, t in pet_tasks:
-                        row = st.columns([1.5, 1, 1.5, 1, 1, 1.2, 1, 1])
-                        row[0].write(("~~" + t.title + "~~") if t.completion_status else t.title)
-                        row[1].write(t.scheduled_time)
-                        row[2].write(t.due_date)
-                        row[3].write(f"{t.duration_minutes}m")
-                        row[4].write(PRIORITY_EMOJI.get(t.priority, t.priority))
-                        cat_label = f"{CATEGORY_EMOJI.get(t.category.lower(), '')} {t.category}".strip()
-                        row[5].write(cat_label)
-                        row[6].write(t.frequency)
+                    # Configure columns: interactive "Done" checkbox, all others read-only
+                    column_config = {
+                        "Done": st.column_config.CheckboxColumn("Done", help="Toggle completion status", default=False),
+                        "Task": st.column_config.TextColumn("Task", disabled=True),
+                        "Time": st.column_config.TextColumn("Time", disabled=True),
+                        "Due Date": st.column_config.TextColumn("Due Date", disabled=True),
+                        "Duration": st.column_config.TextColumn("Duration", disabled=True),
+                        "Priority": st.column_config.TextColumn("Priority", disabled=True),
+                        "Category": st.column_config.TextColumn("Category", disabled=True),
+                        "Frequency": st.column_config.TextColumn("Frequency", disabled=True),
+                    }
+
+                    # Render the interactive table
+                    edited_list = st.data_editor(
+                        editor_data,
+                        key=f"editor_{key_prefix}_{pet_name}",
+                        column_config=column_config,
+                        width="stretch",
+                        hide_index=True,
+                    )
+
+                    # Detect and process changes in completion status
+                    for i, row in enumerate(edited_list):
+                        p, t = pet_tasks[i]
+                        new_status = row["Done"]
                         
-                        btn_label = "No" if t.completion_status else "Yes"
-                        btn_type = "primary" if t.completion_status else "secondary"
-                        if row[7].button(btn_label, type=btn_type, key=f"{key_prefix}_btn_{t.id}", use_container_width=True):
-                            if t.completion_status:
+                        if t.completion_status != new_status:
+                            if t.completion_status:  # Un-completing (True -> False)
                                 t.completion_status = False
                                 if t.created_next_task_id:
-                                    pt_pet.tasks = [task for task in pt_pet.tasks if task.id != t.created_next_task_id]
+                                    p.tasks = [task for task in p.tasks if task.id != t.created_next_task_id]
                                     t.created_next_task_id = None
                                 owner.history = [r for r in owner.history if r.task_id != t.id]
-                            else:
+                            else:  # Completing (False -> True)
+                                t.completion_status = True
                                 record = CompletionRecord(
                                     task_id=t.id,
-                                    pet_name=pt_pet.name,
+                                    pet_name=p.name,
                                     task_title=t.title,
                                     category=t.category,
                                     timestamp=f"{t.due_date}T{t.scheduled_time}"
                                 )
                                 owner.history.append(record)
-                                Scheduler(owner=owner).reschedule_if_recurring(task=t, pet=pt_pet)
+                                Scheduler(owner=owner).reschedule_if_recurring(task=t, pet=p)
                             
                             save_data(owner)
                             st.rerun()

@@ -37,6 +37,11 @@ class Task:
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
     created_next_task_id: str | None = None
 
+    def __post_init__(self) -> None:
+        """Normalize fields after initialization."""
+        if isinstance(self.priority, str):
+            self.priority = self.priority.lower().strip()
+
     def mark_complete(self) -> None:
         """Mark this task as completed."""
         self.completion_status = True
@@ -118,6 +123,10 @@ class Owner:
     def add_pet(self, pet: Pet) -> None:
         """Add a pet to this owner's list."""
         self.pets.append(pet)
+
+    def get_pet_by_name(self, name: str) -> Pet | None:
+        """Find a pet by name in the owner's managed list."""
+        return next((p for p in self.pets if p.name == name), None)
 
     @classmethod
     def from_dict(cls, data: dict) -> Owner:

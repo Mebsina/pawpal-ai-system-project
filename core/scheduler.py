@@ -51,7 +51,7 @@ class Scheduler:
 
         sorted_tasks = sorted(
             all_tasks,
-            key=lambda t: (-PRIORITY_ORDER[t.priority], t.duration_minutes),
+            key=lambda t: (-PRIORITY_ORDER[t.priority.lower()], t.duration_minutes),
         )
 
         schedule = Schedule()

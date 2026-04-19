@@ -54,19 +54,35 @@ SPECIES_EMOJI = {"dog": "🐶", "cat": "🐱", "other": "🐾"}
 
 # --- Pet Care Guidelines ---
 # Standard industry baselines used by the AI when suggesting plans.
-STANDARD_CARE_GUIDELINES = {
+# Structured for both AI prompting and automated validation.
+STANDARD_CARE_GUIDELINES: dict[str, list[dict]] = {
     "dog": [
-        "Feed twice a day (morning and evening).",
-        "At least one 30-minute walk per day.",
-        "Daily playtime or enrichment session."
+        {"type": "feeding", "min_count": 2, "label": "Feed twice a day (morning and evening)."},
+        {"type": "walk", "min_count": 1, "label": "At least one 30-minute walk per day."},
+        {"type": "play", "min_count": 1, "label": "Daily playtime or enrichment session."}
     ],
     "cat": [
-        "Feed 2-3 times a day or ensure fresh food is available.",
-        "Daily play session to stimulate hunting instincts.",
-        "Grooming session every 1-2 days for long-haired cats or seniors."
+        {"type": "feeding", "min_count": 2, "label": "Feed 2-3 times a day or ensure fresh food is available."},
+        {"type": "play", "min_count": 1, "label": "Daily play session to stimulate hunting instincts."},
+        {"type": "grooming", "min_count": 0.5, "label": "Grooming session every 1-2 days for long-haired cats or seniors."}
     ],
     "general": [
-        "Check and clean water bowls daily.",
-        "Complete any medication tasks strictly on schedule."
+        {"type": "utility", "min_count": 1, "label": "Check and clean water bowls daily."},
+        {"type": "meds", "min_count": 0, "label": "Complete any medication tasks strictly on schedule."}
     ]
 }
+
+# --- UI Styling ---
+# Custom CSS for Streamlit navigation items
+# targets [data-testid="stSidebarNav"] to increase font size in the sidebar
+NAV_BAR_CSS = """
+<style>
+    [data-testid="stSidebarNav"] div[role="button"] p {
+        font-size: 1.15rem !important;
+        font-weight: 500 !important;
+    }
+    [data-testid="stSidebarNav"] span {
+        font-size: 1.1rem !important;
+    }
+</style>
+"""

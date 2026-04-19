@@ -2,7 +2,7 @@ import pytest
 import json
 from unittest.mock import MagicMock, patch
 from datetime import datetime
-from ai.tools.suggest_schedule import suggest_schedule_tool
+from ai.tools.planner import planner_tool
 
 # ---------------------------------------------------------------------------
 # Smart Scheduler Agentic Tool
@@ -51,8 +51,8 @@ def test_suggest_schedule_happy_path(mock_ollama, mock_owner):
     
     mock_ollama.return_value = mock_ollama.response_class(json.dumps(mock_response))
     
-    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
-        result = suggest_schedule_tool("Help me plan today")
+    with patch("ai.tools.planner.load_data", return_value=mock_owner):
+        result = planner_tool("Help me plan today")
     
     assert isinstance(result, dict)
     assert result["type"] == "plan_suggestion"
@@ -87,8 +87,8 @@ def test_suggest_schedule_agentic_feedback_loop(mock_ollama, mock_owner):
         mock_ollama.response_class(json.dumps(response_2))
     ]
     
-    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
-        result = suggest_schedule_tool("Plan something")
+    with patch("ai.tools.planner.load_data", return_value=mock_owner):
+        result = planner_tool("Plan something")
     
     assert mock_ollama.call_count == 2
     assert isinstance(result, dict)
@@ -121,8 +121,8 @@ def test_suggest_schedule_enforces_baseline_care(mock_ollama, mock_owner):
         mock_ollama.response_class(json.dumps(response_2))
     ]
     
-    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
-        result = suggest_schedule_tool("I need a plan")
+    with patch("ai.tools.planner.load_data", return_value=mock_owner):
+        result = planner_tool("I need a plan")
     
     assert mock_ollama.call_count == 2
     
@@ -140,7 +140,7 @@ def test_suggest_schedule_ollama_error_handling(mock_ollama):
     """Graceful degradation if Ollama fails."""
     mock_ollama.side_effect = Exception("Ollama is down")
     
-    result = suggest_schedule_tool("Help")
+    result = planner_tool("Help")
     
     assert "error while refining" in result
 
@@ -157,8 +157,8 @@ def test_suggest_schedule_confidence_threshold_exits_early(mock_ollama, mock_own
     }
     mock_ollama.return_value = mock_ollama.response_class(json.dumps(mock_response))
     
-    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
-        suggest_schedule_tool("Plan today")
+    with patch("ai.tools.planner.load_data", return_value=mock_owner):
+        planner_tool("Plan today")
     
     assert mock_ollama.call_count == 1
 
@@ -175,8 +175,8 @@ def test_suggest_schedule_refines_up_to_five_turns(mock_ollama, mock_owner):
     }
     mock_ollama.return_value = mock_ollama.response_class(json.dumps(bad_response))
     
-    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
-        result = suggest_schedule_tool("Plan")
+    with patch("ai.tools.planner.load_data", return_value=mock_owner):
+        result = planner_tool("Plan")
     
     assert mock_ollama.call_count == 5
     assert "Note:** Some issues remain" in result["message"]
@@ -210,8 +210,8 @@ def test_suggest_schedule_respects_daily_time_budget(mock_ollama, mock_owner):
         mock_ollama.response_class(json.dumps(fixed_response))
     ]
     
-    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
-        result = suggest_schedule_tool("Plan")
+    with patch("ai.tools.planner.load_data", return_value=mock_owner):
+        result = planner_tool("Plan")
     
     assert mock_ollama.call_count == 2
     # Check that turn 2 messages contained budget overflow warning
@@ -243,8 +243,8 @@ def test_suggest_schedule_rejects_invalid_hhmm(mock_ollama, mock_owner):
         mock_ollama.response_class(json.dumps(fixed_response))
     ]
     
-    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
-        suggest_schedule_tool("Plan")
+    with patch("ai.tools.planner.load_data", return_value=mock_owner):
+        planner_tool("Plan")
         
     feedback = mock_ollama.call_args_list[1][1]["messages"][-1]["content"]
     assert "INVALID_TIME" in feedback
@@ -275,8 +275,8 @@ def test_suggest_schedule_same_category_proximity_check(mock_ollama, mock_owner)
         mock_ollama.response_class(json.dumps(fixed_response))
     ]
     
-    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
-        suggest_schedule_tool("Plan")
+    with patch("ai.tools.planner.load_data", return_value=mock_owner):
+        planner_tool("Plan")
         
     feedback = mock_ollama.call_args_list[1][1]["messages"][-1]["content"]
     assert "TOO_CLOSE" in feedback
@@ -300,8 +300,8 @@ def test_suggest_schedule_schema_validation_failure(mock_ollama, mock_owner):
         mock_ollama.response_class(json.dumps(good_schema))
     ]
     
-    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
-        suggest_schedule_tool("Plan")
+    with patch("ai.tools.planner.load_data", return_value=mock_owner):
+        planner_tool("Plan")
     
     assert mock_ollama.call_count == 2
 
@@ -330,8 +330,8 @@ def test_suggest_schedule_conflict_with_existing(mock_ollama, mock_owner):
     
     mock_ollama.return_value = mock_ollama.response_class(json.dumps(conflict_response))
     
-    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
-        result = suggest_schedule_tool("Plan")
+    with patch("ai.tools.planner.load_data", return_value=mock_owner):
+        result = planner_tool("Plan")
     
     # When conflicts prevent all suggestions, it returns the fallback string
     assert "couldn't identify any new tasks" in result
@@ -348,9 +348,9 @@ def test_suggest_schedule_classify_play_and_grooming(mock_ollama, mock_owner):
     }
     mock_ollama.return_value = mock_ollama.response_class(json.dumps(response))
     
-    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
+    with patch("ai.tools.planner.load_data", return_value=mock_owner):
         # This will cover the _classify logic for play/grooming
-        suggest_schedule_tool("Plan")
+        planner_tool("Plan")
     
     assert mock_ollama.called
 
@@ -372,7 +372,66 @@ def test_suggest_schedule_no_suggestions_fallback(mock_ollama, mock_owner):
         Task(title="Walk", category="exercise", scheduled_time="10:00", due_date=today, duration_minutes=30, priority="high", frequency="daily")
     ]
     
-    with patch("ai.tools.suggest_schedule.load_data", return_value=mock_owner):
-        result = suggest_schedule_tool("Plan")
+    with patch("ai.tools.planner.load_data", return_value=mock_owner):
+        result = planner_tool("Plan")
     
     assert "couldn't identify any new tasks" in result
+
+def test_suggest_schedule_cross_pet_overlap_detection(mock_ollama, mock_owner):
+    """Verify that tasks for different pets that overlap in time are flagged."""
+    # Add a task for Mochi (pet[0]): 08:00 - 08:30 (30m)
+    from core.models import Task
+    today = datetime.now().strftime("%Y-%m-%d")
+    mock_owner.pets[0].tasks.append(Task(
+        title="Mochi Walk", 
+        scheduled_time="08:00", 
+        duration_minutes=30,
+        category="exercise",
+        priority="high",
+        frequency="daily",
+        due_date=today
+    ))
+    
+    # LLM suggests a task for Luna (if we mock luna or just use pet names)
+    # The tool maps pet_name to existing pets.
+    overlap_response = {
+        "summary": "Overlapping plan",
+        "suggestions": [
+            {"pet_name": "Luna", "title": "Luna Walk", "scheduled_time": "08:15", "duration_minutes": 30, "priority": "high", "category": "exercise", "frequency": "daily"},
+            {"pet_name": "Luna", "title": "Luna Breakfast", "scheduled_time": "07:00", "duration_minutes": 15, "priority": "high", "category": "feeding", "frequency": "daily"},
+            {"pet_name": "Mochi", "title": "Mochi Breakfast", "scheduled_time": "07:20", "duration_minutes": 15, "priority": "high", "category": "feeding", "frequency": "daily"}
+        ],
+        "confidence": 0.95
+    }
+    
+    # Second turn: fixed (staggered correctly)
+    fixed_response = {
+        "summary": "Fixed plan",
+        "suggestions": [
+            {"pet_name": "Luna", "title": "Luna Walk", "scheduled_time": "08:35", "duration_minutes": 30, "priority": "high", "category": "exercise", "frequency": "daily"},
+            {"pet_name": "Luna", "title": "Luna Breakfast", "scheduled_time": "07:00", "duration_minutes": 15, "priority": "high", "category": "feeding", "frequency": "daily"},
+            {"pet_name": "Mochi", "title": "Mochi Breakfast", "scheduled_time": "07:20", "duration_minutes": 15, "priority": "high", "category": "feeding", "frequency": "daily"}
+        ],
+        "confidence": 0.95
+    }
+    
+    mock_ollama.side_effect = [
+        mock_ollama.response_class(json.dumps(overlap_response)),
+        mock_ollama.response_class(json.dumps(fixed_response))
+    ]
+    
+    # Make sure 'Luna' exists in mock_owner
+    from core.models import Pet
+    mock_owner.pets.append(Pet(name="Luna", species="dog", age=10))
+    
+    with patch("ai.tools.planner.load_data", return_value=mock_owner):
+        result = planner_tool("Plan for Luna")
+        
+    assert mock_ollama.call_count == 2
+    feedback = mock_ollama.call_args_list[1][1]["messages"][-1]["content"]
+    assert "CONFLICT" in feedback
+    assert "Luna Walk" in feedback
+    assert "Mochi Walk" in feedback
+    # Assert Luna Walk is now at 08:35
+    luna_walk = next(s for s in result["suggestions"] if s["title"] == "Luna Walk")
+    assert luna_walk["scheduled_time"] == "08:35"

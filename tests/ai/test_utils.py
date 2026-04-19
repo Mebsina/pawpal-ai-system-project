@@ -156,3 +156,15 @@ def test_reliability_auditor_record_failure(tmp_path, monkeypatch):
     with patch("builtins.open", side_effect=PermissionError("Read only")):
         # Should not crash, but log error
         ReliabilityAuditor.record_metric("Fail", 0.5)
+
+def test_reliability_auditor_limit(tmp_path, monkeypatch):
+    """Verify metrics history is capped at the defined limit (current 1000)."""
+    test_file = tmp_path / "limit_metrics.json"
+    monkeypatch.setattr(ReliabilityAuditor, "METRICS_FILE", str(test_file))
+    
+    # Fill beyond the old limit (100) and check if it reaches new limit (1000)
+    for i in range(1100):
+        ReliabilityAuditor.record_metric("Test_Tool", confidence=0.9, success=True)
+    
+    summary = ReliabilityAuditor.get_metrics_summary()
+    assert summary["count"] == 1000

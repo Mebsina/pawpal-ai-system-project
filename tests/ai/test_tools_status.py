@@ -1,7 +1,7 @@
 import pytest
 import json
 from unittest.mock import patch, MagicMock
-from ai.tools.predictive_alerts import predictive_alerts_tool
+from ai.tools.status import status_report_tool
 
 # ---------------------------------------------------------------------------
 # Predictive Alerts Tool
@@ -17,8 +17,8 @@ def test_predictive_alerts_healthy_path(mock_ollama, mock_owner):
     # Ensure no anomalies
     mock_owner.pets[0].tasks = []
     
-    with patch("ai.tools.predictive_alerts.load_data", return_value=mock_owner):
-        result = predictive_alerts_tool("Are my pets okay?")
+    with patch("ai.tools.status.load_data", return_value=mock_owner):
+        result = status_report_tool("Are my pets okay?")
     
     assert "Everything looks on track" in result
 
@@ -43,8 +43,8 @@ def test_predictive_alerts_anomaly_detected(mock_ollama, mock_owner, mock_sessio
     }
     mock_ollama.return_value = mock_ollama.response_class(json.dumps(mock_response))
     
-    with patch("ai.tools.predictive_alerts.load_data", return_value=mock_owner):
-        result = predictive_alerts_tool("Any alerts?")
+    with patch("ai.tools.status.load_data", return_value=mock_owner):
+        result = status_report_tool("Any alerts?")
     
     assert "Mochi missed their morning walk" in result
     assert mock_session_state.active_intent == "SUGGEST_SCHEDULE"
@@ -65,8 +65,8 @@ def test_predictive_alerts_ollama_failure_fallback(mock_ollama, mock_owner):
     
     mock_ollama.side_effect = Exception("LLM Down")
     
-    with patch("ai.tools.predictive_alerts.load_data", return_value=mock_owner):
-        result = predictive_alerts_tool("Alerts?")
+    with patch("ai.tools.status.load_data", return_value=mock_owner):
+        result = status_report_tool("Alerts?")
     
     assert "might need your attention" in result
     assert "Mochi" in result
@@ -85,6 +85,6 @@ def test_predictive_alerts_extraction_failure(mock_ollama, mock_owner):
         due_date="2000-01-01"
     ))
     
-    with patch("ai.tools.predictive_alerts.load_data", return_value=mock_owner):
-        result = predictive_alerts_tool("Alerts?")
+    with patch("ai.tools.status.load_data", return_value=mock_owner):
+        result = status_report_tool("Alerts?")
     assert result == "Raw alerts summary."

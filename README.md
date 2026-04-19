@@ -9,14 +9,14 @@ PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It 
 - **Task manager**: add tasks with title, duration, priority, category, frequency, and scheduled time (15-minute step picker); tasks are only saved if no time conflict exists
 - **Conflict detection**: Warns during task creation if another task overlaps within the same duration window across any pet. Uses interval-based logic rather than simple time-string matching.
 - **Sort and filter**: sort tasks by scheduled time, priority, or duration; filter by priority; high-priority badge shows count of outstanding items
-- **Complete / uncomplete**: toggle completion per task with strikethrough display; completing a daily or weekly task automatically queues the next occurrence; uncompleting removes it
-- **Generate Plan**: filter by pet and status, schedule incomplete tasks within the time budget, display Scheduled / Could not fit / Complete tables
+- **Complete / uncomplete**: toggle completion per task using an **Interactive Checkbox** within the data table; completing a daily or weekly task automatically queues the next occurrence; uncompleting removes it
+- **Generate Plan**: filter by pet and status, schedule incomplete tasks within the time budget, display Scheduled / Could not fit / Complete tables. Features **Fully Reactive Rendering** where the plan automatically updates and persists throughout the session.
 - **Data persistence**: all data saves to `data/pawpal_data.json` automatically on every change; restored on refresh or restart
 
 ## AI Features
-- **Floating Conversational Hub**: Access the Llama AI instantly through a persistent action button without losing visibility of your manual dashboard.
+- **Floating Conversational Hub**: Access the Llama AI instantly through a persistent action button. Optimized via direct `st.html` injection for zero latency and seamless visibility of your manual dashboard.
 - **Dynamic Intent Routing**: The `router.py` parses user intent organically and routes it internally with multi-turn "Context Locking".
-- **Smart Scheduler & Predictive Alerts**: Proactively scans behavioral history to identify gaps and suggests a 'Smart Plan' based on species-specific guidelines. Uses an agentic multi-turn loop (up to 5 refinement turns) with confidence scoring (target 0.9+), strict HH:MM time validation, per-pet baseline care enforcement (feeding + activity), same-category proximity checks, and daily time-budget awareness. Results are displayed grouped by pet in a chronological timeline.
+- **Smart Scheduler & Unified Status Report**: Proactively scans behavioral history to identify gaps and provides a warm, conversational narrative summary of both completed successes and missed routines. Uses an agentic multi-turn loop (up to 5 refinement turns) with confidence scoring (target 0.9+), strict HH:MM time validation, **non-zero duration enforcement (>=1m)**, per-pet baseline care enforcement (feeding + activity), same-category proximity checks, and daily time-budget awareness. **Enforces a strictly sequential Global Timeline**, ensuring tasks for different pets do not overlap if managed by a single caregiver. **Provides actionable guidance when the budget is full**, suggesting the user mark tasks as complete or increase the daily limit. Leads to a cohesive progress report that eliminates the need for separate analytics and alert tools.
 - **Contextual Knowledge Base**: Seeded with industry-standard care (Dogs: 30m walk/2x feeding; Cats: play/grooming) to ground AI advice in best practices.
 - **Conversational Pet Management**: Add, remove, or list pets using natural language. Features strict user-confirmation guardrails for any data-altering actions.
 - **JSON Output Sanitization**: Integrated regex-based filtering strictly isolates python dictionaries from LLM conversational filler. Supports multiple nested blocks and malformed markdown resilience.
@@ -47,8 +47,8 @@ flowchart TD
     User([User])
 
     subgraph VC["View + Controller"]
-    App["app.py<br/>Orchestrator"]
-    Views["views/<br/>Modular Components"]
+    App["app.py<br/>Multi-Page Router"]
+    Views["views/<br/>Page Components"]
 end
 
 subgraph AI["AI Service Layer"]
@@ -83,8 +83,8 @@ Engine <--> Store
 | Layer | File(s) | Responsibility |
 |-------|---------|---------------|
 | Configuration | `config.py` | Centralized system instructions, pet care guidelines, and UI constants (emojis) |
-| Layout Orchestrator | `app.py` | Streamlit entry point, session state initialization, and component coordination |
-| View Components | `views/` package | Modular UI sections: sidebar, owner/pet forms, task dashboard, and AI chat hub |
+| Layout Router | `app.py` | Streamlit entry point, `st.navigation` orchestration, and session state initialization |
+| Page Components | `views/` package | Modular UI pages: Dashboard (Profile/Pets), Tasks, Planner, and AI Metrics |
 | AI Service Layer | `ai/router.py`, `ai/tools/`, `ai/utils.py` | Intent parsing, zero-temperature grounding, tool interactions, and markdown sanitization |
 | Core / Model | `core/` package (`models`, `scheduler`, `analytics`) | Data model, scheduler logic, and anomaly detection |
 | Data Layer | `core/persistence.py`, `data/pawpal_data.json` | Automated JSON persistence and completion history |
@@ -187,7 +187,7 @@ flowchart LR
         Agent["<b>Agent</b><br/>router.py + tools/"]
         Retriever["<b>Retriever</b><br/>persistence.py"]
         Evaluator["<b>Evaluator / Tester</b><br/>JSON Sanitizer +<br/>Logic Validation"]
-        Auditor["<b>Reliability Auditor</b><br/>utils.py +<br/>metrics.json"]
+        Auditor["<b>Reliability Auditor</b><br/>sidebar.py +<br/>metrics.json"]
     end
     
     Retriever -- "Fetches Data Context" --> Agent
@@ -199,7 +199,7 @@ flowchart LR
     
     HumanCheck -- "Confirm" --> State([Updated JSON State])
     HumanCheck -- "Reject / Rephrase" --> Input
-
+ 
     Agent -.->|"Logs Statistics"| Auditor
     Evaluator -.->|"Logs Success/Fail"| Auditor
 ```
@@ -231,9 +231,10 @@ AI features require Ollama to be running. The app works without it but NL task c
 |---------|------------|-----------|
 | **NL Task Creation** | "Schedule a 20min feeding for Mochi at 8am" | "Please verify this schedule: **Feeding** for **Mochi** at 08:00... Does this look accurate?" |
 | **Manage Pets** | "Add a 2 year old cat named Snow" | "I've prepared the profile for **Snow**! ... Should I add them to your family?" |
-| **List Pets** | "Which pets do I have?" | "- 🐶 **Mochi**: 3-year-old dog. (Special needs: None)..." |
+| **List Pets** | "Which pets do I have?" | "Oh, I see that you have 2 dogs, **Pug** (1 year old) and **Mochi** (3 years old), and 1 cat, **Luna** (15 years old) with special needs of senior and arthritis..." |
 | **Proactive Planner** | "What should I schedule?" | "Here is your smart plan: 10 task(s) for 3 pet(s)." grouped by pet with timeline (`08:00` - Morning Walk  30m) |
-| **Predictive Alert** | "Check alerts" | "Everything looks on track! / I noticed Mochi is missing their daily walk. Should we schedule one?" |
+| **Packed Schedule** | "What should I schedule?" | "Your schedule is already packed for today! ... To add more tasks, please either mark some as 'Complete' or increase your daily time limit in the Dashboard." |
+| **Unified Status Report** | "Check status" | "You've had a great start! Mochi completed feeding, but missed a walk. Let's get back on track by marking that complete." |
 | **Escape Action** | "Nevermind" | *Breaks active intent lock and returns to main menu context.* |
 
 ## Design Decisions
@@ -260,8 +261,8 @@ PawPal+ maintains a high-integrity, regression-proof codebase with **>95% test c
 python -m pytest --cov=ai --cov=core --cov-report=term-missing tests
 ```
 
-Current Suite: **124 Tests Passed**  
-Overall Coverage: **96%**
+Current Suite: **127 Tests Passed**  
+265: Overall Coverage: **95%**
 
 ### Core System Tests
 - **Data Integrity**: Verifies that task completion toggles correctly, pet additions scale properly, and primary keys (UUIDs) remain globally unique for accurate persistence.
@@ -284,7 +285,7 @@ Overall Coverage: **96%**
 - **Batch Plan Execution**: The AI assistant processes multiple pet requirements simultaneously and applies updates via batch confirmation.
 - **Human Evaluation**: Manually verified that "Smart Plan" suggestions respect species guidelines and historical patterns.
 
-*Summary: A total of **124 out of 124 tests** are passing. The system maintains a **96% total coverage** floor, with 100% coverage on all core logic files.*
+*Summary: A total of **127 out of 127 tests** are passing. The system maintains a **95% total coverage** floor, with 100% coverage on all core logic files.*
 
 ## Reflection
 

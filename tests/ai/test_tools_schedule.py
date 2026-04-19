@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 from ai.tools.add_task import add_task_tool
-from ai.tools.check_schedule import check_schedule_tool
+from ai.tools.schedule import schedule_tool
 from core.models import Task
 
 # ---------------------------------------------------------------------------
@@ -94,8 +94,8 @@ def test_check_schedule_tool(mock_persistence, mock_ollama, mock_owner):
     ))
     
     # Patch directly in the tool's namespace to be 100% sure the mock is used
-    with patch("ai.tools.check_schedule.load_data", return_value=mock_owner):
-        result = check_schedule_tool("what is my schedule?")
+    with patch("ai.tools.schedule.load_data", return_value=mock_owner):
+        result = schedule_tool("what is my schedule?")
     
     assert isinstance(result, dict)
     assert result["type"] == "show_schedule_table"

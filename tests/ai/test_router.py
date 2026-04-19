@@ -39,10 +39,10 @@ def test_router_ollama_unavailable_graceful_degradation(mock_session_state, mock
     ("ADD_PET", "ai.router.add_pet_tool", "ADD_PET"),
     ("REMOVE_PET", "ai.router.remove_pet_tool", "REMOVE_PET"),
     ("LIST_PETS", "ai.router.list_pets_tool", None),
-    ("PET_INSIGHTS", "ai.router.get_insights_tool", None),
-    ("SUGGEST_SCHEDULE", "ai.router.suggest_schedule_tool", None),
-    ("CHECK_ALERTS", "ai.router.predictive_alerts_tool", None),
-    ("CHECK_SCHEDULE", "ai.router.check_schedule_tool", None),
+    ("PET_INSIGHTS", "ai.router.status_report_tool", None),
+    ("SUGGEST_SCHEDULE", "ai.router.planner_tool", None),
+    ("CHECK_ALERTS", "ai.router.status_report_tool", None),
+    ("CHECK_SCHEDULE", "ai.router.schedule_tool", None),
 ])
 def test_router_full_intent_matrix(mock_session_state, mock_ollama, intent, tool_path, expected_lock):
     """Verify routing for all supported intents."""

@@ -5,7 +5,7 @@ Validates the JSON sanitization capacities against varied LLM responses.
 
 import os
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, mock_open
 from ai.utils import extract_json, validate_schema, check_restricted_keywords, ReliabilityAuditor
 
 # ---------------------------------------------------------------------------
@@ -157,14 +157,28 @@ def test_reliability_auditor_record_failure(tmp_path, monkeypatch):
         # Should not crash, but log error
         ReliabilityAuditor.record_metric("Fail", 0.5)
 
-def test_reliability_auditor_limit(tmp_path, monkeypatch):
-    """Verify metrics history is capped at the defined limit (current 1000)."""
-    test_file = tmp_path / "limit_metrics.json"
-    monkeypatch.setattr(ReliabilityAuditor, "METRICS_FILE", str(test_file))
-    
-    # Fill beyond the old limit (100) and check if it reaches new limit (1000)
-    for i in range(1100):
-        ReliabilityAuditor.record_metric("Test_Tool", confidence=0.9, success=True)
-    
-    summary = ReliabilityAuditor.get_metrics_summary()
-    assert summary["count"] == 1000
+def test_reliability_auditor_limit(monkeypatch):
+    """Verify metrics history is capped at the defined limit (1000)."""
+    # Replace real disk I/O with an in-memory buffer so that 1100 record_metric
+    # calls don't each trigger a full JSON file read + write cycle.
+    in_memory: list = []
+
+    def fake_load(f):
+        return list(in_memory)
+
+    def fake_dump(data, f, **kwargs):
+        in_memory.clear()
+        in_memory.extend(data)
+
+    monkeypatch.setattr(ReliabilityAuditor, "METRICS_FILE", "mock://metrics")
+
+    with patch("os.path.exists", return_value=True), \
+         patch("os.makedirs"), \
+         patch("builtins.open", mock_open()), \
+         patch("json.load", fake_load), \
+         patch("json.dump", fake_dump):
+        for i in range(1100):
+            ReliabilityAuditor.record_metric("Test_Tool", confidence=0.9, success=True)
+
+    # After 1100 inserts the 1000-entry cap must be enforced.
+    assert len(in_memory) == 1000

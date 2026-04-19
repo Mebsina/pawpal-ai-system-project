@@ -37,7 +37,7 @@ def test_config_pet_care_guidelines_present():
     assert "cat" in guidelines
     assert "general" in guidelines
     
-    # Check that dog guidelines mention feed and walk (load-bearing for tests)
-    dog_text = " ".join(guidelines["dog"]).lower()
+    # Extract the human-readable label string from each guideline dict before joining.
+    dog_text = " ".join(g["label"] for g in guidelines["dog"]).lower()
     assert "feed" in dog_text
     assert "walk" in dog_text

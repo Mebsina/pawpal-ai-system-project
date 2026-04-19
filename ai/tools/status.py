@@ -76,14 +76,16 @@ def _format_fallback_message(anomalies: list[str], recent_records: list) -> str:
     """Simple narrative fallback for unified status reporting."""
     if not anomalies and not recent_records:
         return "Everything looks on track! I haven't detected any missed routines or history yet."
-    
+
     msg = "You've been busy with your pets! "
     if recent_records:
         msg += f"I see you've completed {len(recent_records)} tasks recently, which is great progress. "
-    
+
     if anomalies:
-        msg += f"However, I noticed a few missed routines for your pets. It might be a good idea to check your schedule and catch up where possible."
+        # Include anomaly details so individual pet names appear in the output.
+        anomaly_detail = "; ".join(anomalies[:3])
+        msg += f"However, some items might need your attention: {anomaly_detail}."
     else:
         msg += "Everything else seems to be running smoothly!"
-        
+
     return msg + " Would you like to schedule a catch-up session now?"

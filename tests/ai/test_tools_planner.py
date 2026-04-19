@@ -72,12 +72,14 @@ def test_suggest_schedule_agentic_feedback_loop(mock_ollama, mock_owner):
         "confidence": 0.5
     }
     
-    # Turn 2: Resolved
+    # Turn 2: Resolved - satisfies all dog care requirements (feeding×2, walk×1, play×1)
     response_2 = {
         "summary": "Draft 2",
         "suggestions": [
             {"pet_name": "Mochi", "title": "Resolved Task", "scheduled_time": "09:00", "duration_minutes": 10, "category": "feeding"},
-            {"pet_name": "Mochi", "title": "Second Task", "scheduled_time": "11:00", "duration_minutes": 10, "category": "exercise"}
+            {"pet_name": "Mochi", "title": "Morning Walk", "scheduled_time": "10:00", "duration_minutes": 30, "category": "walk"},
+            {"pet_name": "Mochi", "title": "Playtime", "scheduled_time": "14:00", "duration_minutes": 20, "category": "play"},
+            {"pet_name": "Mochi", "title": "Dinner", "scheduled_time": "18:00", "duration_minutes": 10, "category": "feeding"}
         ],
         "confidence": 0.95
     }
@@ -106,12 +108,14 @@ def test_suggest_schedule_enforces_baseline_care(mock_ollama, mock_owner):
         "confidence": 0.95
     }
     
-    # Second turn fixed by LLM after feedback
+    # Second turn: LLM resolves all gaps - feeding×2, walk×1, play×1 with correct spacing
     response_2 = {
         "summary": "Added food",
         "suggestions": [
-            {"pet_name": "Mochi", "title": "Just a walk", "scheduled_time": "08:00", "duration_minutes": 20, "category": "exercise"},
-            {"pet_name": "Mochi", "title": "Breakfast", "scheduled_time": "09:00", "duration_minutes": 10, "category": "feeding"}
+            {"pet_name": "Mochi", "title": "Just a walk", "scheduled_time": "08:00", "duration_minutes": 20, "category": "walk"},
+            {"pet_name": "Mochi", "title": "Playtime", "scheduled_time": "09:30", "duration_minutes": 20, "category": "play"},
+            {"pet_name": "Mochi", "title": "Breakfast", "scheduled_time": "11:00", "duration_minutes": 10, "category": "feeding"},
+            {"pet_name": "Mochi", "title": "Dinner", "scheduled_time": "18:00", "duration_minutes": 10, "category": "feeding"}
         ],
         "confidence": 0.95
     }
@@ -136,22 +140,28 @@ def test_suggest_schedule_enforces_baseline_care(mock_ollama, mock_owner):
 
 
 @pytest.mark.usefixtures("mock_persistence")
-def test_suggest_schedule_ollama_error_handling(mock_ollama):
+def test_suggest_schedule_ollama_error_handling(mock_ollama, mock_owner):
     """Graceful degradation if Ollama fails."""
     mock_ollama.side_effect = Exception("Ollama is down")
-    
-    result = planner_tool("Help")
-    
+
+    # Patch at the planner's import binding so the early-exit budget check
+    # does not fire against real persisted data before Ollama is ever called.
+    with patch("ai.tools.planner.load_data", return_value=mock_owner):
+        result = planner_tool("Help")
+
     assert "error while refining" in result
 
 @pytest.mark.usefixtures("mock_persistence")
 def test_suggest_schedule_confidence_threshold_exits_early(mock_ollama, mock_owner):
     """Assert single turn when confidence is high (>= 0.9) and no issues."""
+    # Satisfies all dog requirements in one turn so the loop exits immediately
     mock_response = {
         "summary": "High confidence plan",
         "suggestions": [
             {"pet_name": "Mochi", "title": "Breakfast", "scheduled_time": "08:00", "duration_minutes": 15, "category": "feeding"},
-            {"pet_name": "Mochi", "title": "Morning Walk", "scheduled_time": "08:30", "duration_minutes": 30, "category": "exercise"}
+            {"pet_name": "Mochi", "title": "Morning Walk", "scheduled_time": "09:00", "duration_minutes": 30, "category": "walk"},
+            {"pet_name": "Mochi", "title": "Playtime", "scheduled_time": "14:00", "duration_minutes": 20, "category": "play"},
+            {"pet_name": "Mochi", "title": "Dinner", "scheduled_time": "18:00", "duration_minutes": 15, "category": "feeding"}
         ],
         "confidence": 0.95
     }
@@ -195,12 +205,14 @@ def test_suggest_schedule_respects_daily_time_budget(mock_ollama, mock_owner):
         "confidence": 0.95
     }
     
-    # Second turn fixed (just for test flow)
+    # Second turn: all 4 tasks fit within the tight 30-minute budget (total = 20 min)
     fixed_response = {
         "summary": "Fixed budget",
         "suggestions": [
-            {"pet_name": "Mochi", "title": "Short Walk", "scheduled_time": "08:00", "duration_minutes": 15, "category": "exercise"},
-            {"pet_name": "Mochi", "title": "Bite", "scheduled_time": "08:30", "duration_minutes": 5, "category": "feeding"}
+            {"pet_name": "Mochi", "title": "Short Walk", "scheduled_time": "08:00", "duration_minutes": 5, "category": "walk"},
+            {"pet_name": "Mochi", "title": "Playtime", "scheduled_time": "08:10", "duration_minutes": 5, "category": "play"},
+            {"pet_name": "Mochi", "title": "Breakfast", "scheduled_time": "08:20", "duration_minutes": 5, "category": "feeding"},
+            {"pet_name": "Mochi", "title": "Dinner", "scheduled_time": "20:00", "duration_minutes": 5, "category": "feeding"}
         ],
         "confidence": 0.95
     }
@@ -232,8 +244,10 @@ def test_suggest_schedule_rejects_invalid_hhmm(mock_ollama, mock_owner):
     fixed_response = {
         "summary": "Real time",
         "suggestions": [
-            {"pet_name": "Mochi", "title": "Feed", "scheduled_time": "08:00", "duration_minutes": 10, "category": "feeding"},
-            {"pet_name": "Mochi", "title": "Walk", "scheduled_time": "10:00", "duration_minutes": 20, "category": "exercise"}
+            {"pet_name": "Mochi", "title": "Breakfast", "scheduled_time": "08:00", "duration_minutes": 15, "category": "feeding"},
+            {"pet_name": "Mochi", "title": "Morning Walk", "scheduled_time": "09:00", "duration_minutes": 30, "category": "walk"},
+            {"pet_name": "Mochi", "title": "Playtime", "scheduled_time": "14:00", "duration_minutes": 20, "category": "play"},
+            {"pet_name": "Mochi", "title": "Dinner", "scheduled_time": "18:00", "duration_minutes": 15, "category": "feeding"}
         ],
         "confidence": 0.95
     }
@@ -265,6 +279,8 @@ def test_suggest_schedule_same_category_proximity_check(mock_ollama, mock_owner)
         "summary": "Spread out",
         "suggestions": [
             {"pet_name": "Mochi", "title": "Breakfast", "scheduled_time": "08:00", "duration_minutes": 10, "category": "feeding"},
+            {"pet_name": "Mochi", "title": "Morning Walk", "scheduled_time": "09:00", "duration_minutes": 30, "category": "walk"},
+            {"pet_name": "Mochi", "title": "Playtime", "scheduled_time": "14:00", "duration_minutes": 20, "category": "play"},
             {"pet_name": "Mochi", "title": "Dinner", "scheduled_time": "18:00", "duration_minutes": 10, "category": "feeding"}
         ],
         "confidence": 0.95
@@ -285,12 +301,14 @@ def test_suggest_schedule_schema_validation_failure(mock_ollama, mock_owner):
     """Ensure schema validation failures trigger a retry."""
     # Turn 1: Missing "summary"
     bad_schema = {"suggestions": [], "confidence": 0.5}
-    # Turn 2: Valid and complete (no gaps)
+    # Turn 2: Valid - full dog requirements (feeding×2, walk×1, play×1)
     good_schema = {
         "summary": "Ok", 
         "suggestions": [
-            {"pet_name": "Mochi", "title": "Feed", "scheduled_time": "08:00", "duration_minutes": 10, "category": "feeding"},
-            {"pet_name": "Mochi", "title": "Walk", "scheduled_time": "10:00", "duration_minutes": 30, "category": "exercise"}
+            {"pet_name": "Mochi", "title": "Breakfast", "scheduled_time": "08:00", "duration_minutes": 10, "category": "feeding"},
+            {"pet_name": "Mochi", "title": "Walk", "scheduled_time": "09:00", "duration_minutes": 30, "category": "walk"},
+            {"pet_name": "Mochi", "title": "Playtime", "scheduled_time": "14:00", "duration_minutes": 20, "category": "play"},
+            {"pet_name": "Mochi", "title": "Dinner", "scheduled_time": "18:00", "duration_minutes": 10, "category": "feeding"}
         ], 
         "confidence": 0.95
     }
@@ -404,13 +422,18 @@ def test_suggest_schedule_cross_pet_overlap_detection(mock_ollama, mock_owner):
         "confidence": 0.95
     }
     
-    # Second turn: fixed (staggered correctly)
+    # Second turn: staggered, satisfying full dog requirements for both Mochi and Luna.
+    # Mochi already has an existing Walk today, so only feeding×2 and play×1 are needed.
     fixed_response = {
         "summary": "Fixed plan",
         "suggestions": [
-            {"pet_name": "Luna", "title": "Luna Walk", "scheduled_time": "08:35", "duration_minutes": 30, "priority": "high", "category": "exercise", "frequency": "daily"},
+            {"pet_name": "Luna", "title": "Luna Walk", "scheduled_time": "08:35", "duration_minutes": 30, "priority": "high", "category": "walk", "frequency": "daily"},
             {"pet_name": "Luna", "title": "Luna Breakfast", "scheduled_time": "07:00", "duration_minutes": 15, "priority": "high", "category": "feeding", "frequency": "daily"},
-            {"pet_name": "Mochi", "title": "Mochi Breakfast", "scheduled_time": "07:20", "duration_minutes": 15, "priority": "high", "category": "feeding", "frequency": "daily"}
+            {"pet_name": "Luna", "title": "Luna Dinner", "scheduled_time": "18:00", "duration_minutes": 15, "priority": "high", "category": "feeding", "frequency": "daily"},
+            {"pet_name": "Luna", "title": "Luna Playtime", "scheduled_time": "13:00", "duration_minutes": 20, "priority": "medium", "category": "play", "frequency": "daily"},
+            {"pet_name": "Mochi", "title": "Mochi Breakfast", "scheduled_time": "07:20", "duration_minutes": 15, "priority": "high", "category": "feeding", "frequency": "daily"},
+            {"pet_name": "Mochi", "title": "Mochi Dinner", "scheduled_time": "19:00", "duration_minutes": 15, "priority": "high", "category": "feeding", "frequency": "daily"},
+            {"pet_name": "Mochi", "title": "Mochi Playtime", "scheduled_time": "14:00", "duration_minutes": 20, "priority": "medium", "category": "play", "frequency": "daily"}
         ],
         "confidence": 0.95
     }

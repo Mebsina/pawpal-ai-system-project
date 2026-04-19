@@ -16,7 +16,7 @@ PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It 
 ## AI Features
 - **Floating Conversational Hub**: Access the Llama AI instantly through a persistent action button. Optimized via direct `st.html` injection for zero latency and seamless visibility of your manual dashboard.
 - **Dynamic Intent Routing**: The `router.py` parses user intent organically and routes it internally with multi-turn "Context Locking".
-- **Smart Scheduler & Unified Status Report**: Proactively scans behavioral history to identify gaps and provides a warm, conversational narrative summary of both completed successes and missed routines. Uses an agentic multi-turn loop (up to 5 refinement turns) with confidence scoring (target 0.9+), strict HH:MM time validation, **non-zero duration enforcement (>=1m)**, per-pet baseline care enforcement (feeding + activity), same-category proximity checks, and daily time-budget awareness. **Enforces a strictly sequential Global Timeline**, ensuring tasks for different pets do not overlap if managed by a single caregiver. **Provides actionable guidance when the budget is full**, suggesting the user mark tasks as complete or increase the daily limit. Leads to a cohesive progress report that eliminates the need for separate analytics and alert tools.
+- **Smart Planner (`planner.py`) & Unified Status Report (`status.py`)**: Proactively scans behavioral history to identify gaps and provides a warm, conversational narrative summary of both completed successes and missed routines. Uses an agentic multi-turn loop (up to 5 refinement turns) with confidence scoring (target 0.9+), strict HH:MM time validation, **non-zero duration enforcement (>=1m)**, per-pet baseline care enforcement (feeding + activity), same-category proximity checks (≥120 min spacing), and daily time-budget awareness. **Enforces a strictly sequential Global Timeline**, ensuring tasks for different pets do not overlap if managed by a single caregiver. **Provides actionable guidance when the budget is full**, suggesting the user mark tasks as complete or increase the daily limit.
 - **Contextual Knowledge Base**: Seeded with industry-standard care (Dogs: 30m walk/2x feeding; Cats: play/grooming) to ground AI advice in best practices.
 - **Conversational Pet Management**: Add, remove, or list pets using natural language. Features strict user-confirmation guardrails for any data-altering actions.
 - **JSON Output Sanitization**: Integrated regex-based filtering strictly isolates python dictionaries from LLM conversational filler. Supports multiple nested blocks and malformed markdown resilience.
@@ -261,8 +261,9 @@ PawPal+ maintains a high-integrity, regression-proof codebase with **>95% test c
 python -m pytest --cov=ai --cov=core --cov-report=term-missing tests
 ```
 
-Current Suite: **127 Tests Passed**  
-265: Overall Coverage: **95%**
+Current Suite: **121 Tests Passed**  
+
+Overall Coverage: **95%**
 
 ### Core System Tests
 - **Data Integrity**: Verifies that task completion toggles correctly, pet additions scale properly, and primary keys (UUIDs) remain globally unique for accurate persistence.
@@ -277,15 +278,15 @@ Current Suite: **127 Tests Passed**
 - **Payload Resiliency**: Tests the system's ability to extract structured data from "noisy" LLM output and handle malformed response formats using the hardened regex sanitizer.
 - **Automated Validation**: Confirms that AI outputs are strictly checked against schemas and content guardrails (keyword scanning) before being processed by the application core.
 - **Reliability Auditing**: Verifies the lifecycle of the `ReliabilityAuditor`, which quantifies system health by aggregating **Confidence Scores** (0.0 to 1.0) and success rates for the system evaluation dashboard.
-- **Infrastructure**: Uses `unittest.mock` and a synchronized `SessionState` fixture in `conftest.py` to isolate tests from local Ollama and Streamlit states for deterministic execution.
-- **Documentation Standard**: All **124 test cases** feature standardized header documentation for improved auditability.
+- **Infrastructure**: Uses `unittest.mock` and a synchronized `SessionState` fixture in `conftest.py` to isolate tests from local Ollama and Streamlit states for deterministic execution. The `ReliabilityAuditor` limit test uses in-memory `json.load`/`json.dump` mocks to avoid 1 100 disk I/O cycles.
+- **Documentation Standard**: All **121 test cases** feature standardized header documentation for improved auditability.
 
 ### System Capabilities Summary
 - **Proactive Anomaly Detection**: `AnalyticsEngine` identifies missed recurring tasks and triggers conversational alerts.
 - **Batch Plan Execution**: The AI assistant processes multiple pet requirements simultaneously and applies updates via batch confirmation.
 - **Human Evaluation**: Manually verified that "Smart Plan" suggestions respect species guidelines and historical patterns.
 
-*Summary: A total of **127 out of 127 tests** are passing. The system maintains a **95% total coverage** floor, with 100% coverage on all core logic files.*
+*Summary: A total of **121 out of 121 tests** are passing. The system maintains a **95% total coverage** floor, with 100% coverage on all core logic files.*
 
 ## Reflection
 

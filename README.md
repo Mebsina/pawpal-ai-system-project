@@ -246,7 +246,7 @@ AI features require Ollama to be running. The app works without it but NL task c
 
 | Decision | Choice | Pro | Con |
 |----------|--------|-----|-----|
-| LLM provider | Ollama local with `llama3.2:3b` | Highly capable, zero data sprawl, extremely flexible | Slower inference hardware demands |
+| LLM provider | Ollama local with `llama3.2:3b` | Free, runs offline, no API key, strong baseline capabilities | Slower inference, higher hallucination risk on a smaller model, requires stricter guardrails and confirmations |
 | Central Configuration | `config.py` overrides `.env` | Eliminates extra dependencies/keys | Adjusting core configurations touches runtime variables |
 | Missing Data Logic | Conversational AI interception | Prevents guessing or hard error locks | Requires an additional round trip to LLM |
 | JSON Sanitization | Regular Expression Strippers | Highly resilient to varied LLM boilerplate | Complex formatting anomalies may occasionally penetrate |
@@ -295,23 +295,4 @@ Overall Coverage: **98%** (`ai` + `core` with `pytest-cov`)
 
 ## Reflection
 
-## Model Card / Full Reflection
-
-See [`model_card.md`](model_card.md) for the full reflection write-up 
-
-### Limitations and biases
-
-- The NL task parser is only as good as the prompt. Unusual phrasing or ambiguous times may produce wrong field values.
-- The predictive alert system flags patterns statistically. Special seasonal needs may trigger false missed-task alerts.
-- Historical data reflects past owner behavior. The AI learn from user habits to suggest future "ideal" times.
-- The system has no veterinary knowledge. It cannot determine if a medication schedule is medically appropriate.
-
-### Misuse and prevention
-
-- Primary risk is over-reliance: owners may treat AI health alerts as medical advice.
-- Mitigation: every Proactive Alert instruction includes strict grounding in provided database facts only.
-
-### Collaboration with AI
-
-- **Helpful suggestion**: Using a multi-turn "Intent Lock" in the router significantly improved the reliability of follow-up corrections (e.g., "Change the time to 5pm").
-- **Flawed suggestion**: Early attempts at alerts without "Zero-Temperature Grounding" led to hallucinations of fake pets like "Bella". Fixed via strict pet-list filtering and 0.0 temperature.
+See [`model_card.md`](model_card.md) for the full reflection and ethics write-up, including limitations and biases, misuse risks and mitigations, what surprised us during reliability testing, and helpful and flawed AI collaboration examples.

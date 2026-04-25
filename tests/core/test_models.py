@@ -1,4 +1,4 @@
-from core.models import Task, Pet, Owner
+from core.models import Task, Pet, Owner, CompletionRecord
 import uuid
 
 # ---------------------------------------------------------------------------
@@ -6,6 +6,9 @@ import uuid
 # Test: task completion status toggling
 # Test: pet task addition API (pet.add_task)
 # Test: owner pet registration (owner.add_pet)
+# Test: owner pet removal (owner.remove_pet; delegates to remove_pet_for_owner)
+# Test: owner.remove_pet unknown name is a no-op (returns False)
+# Test: completion history pruned for removed pet only (owner.remove_pet)
 # Test: persistent hex UUID identity generation
 # Test: parent-child relationship binding (created_next_task_id)
 # Test: mutable default argument safeguards (special_needs)
@@ -53,3 +56,49 @@ def test_pet_special_needs_defaults_to_empty_list():
     p2 = Pet(name="P2", species="cat", age=2)
     p1.special_needs.append("senior")
     assert "senior" not in p2.special_needs
+
+
+def test_owner_remove_pet_drops_pet_and_tasks():
+    """remove_pet: removes the pet object (and nested tasks) from the owner."""
+    owner = Owner(name="Alex", available_minutes=60)
+    mochi = Pet(name="Mochi", species="dog", age=2)
+    mochi.add_task(Task(title="Walk", duration_minutes=20, priority="high", category="walk", frequency="daily"))
+    owner.add_pet(mochi)
+    owner.add_pet(Pet(name="Luna", species="cat", age=1))
+    assert owner.remove_pet("Mochi") is True
+    assert len(owner.pets) == 1
+    assert owner.pets[0].name == "Luna"
+
+
+def test_owner_remove_pet_unknown_returns_false():
+    """remove_pet: no-op when name does not match any pet."""
+    owner = Owner(name="Alex", available_minutes=60)
+    owner.add_pet(Pet(name="Mochi", species="dog", age=2))
+    assert owner.remove_pet("Nope") is False
+    assert len(owner.pets) == 1
+
+
+def test_owner_remove_pet_prunes_history():
+    """remove_pet: strips completion records for that pet_name only."""
+    owner = Owner(name="Alex", available_minutes=60)
+    owner.add_pet(Pet(name="Mochi", species="dog", age=2))
+    owner.add_pet(Pet(name="Luna", species="cat", age=1))
+    owner.history = [
+        CompletionRecord(
+            task_id="a",
+            pet_name="Mochi",
+            task_title="Walk",
+            category="walk",
+            timestamp="2024-01-01T10:00:00",
+        ),
+        CompletionRecord(
+            task_id="b",
+            pet_name="Luna",
+            task_title="Feed",
+            category="feeding",
+            timestamp="2024-01-01T11:00:00",
+        ),
+    ]
+    assert owner.remove_pet("Mochi") is True
+    assert len(owner.history) == 1
+    assert owner.history[0].pet_name == "Luna"

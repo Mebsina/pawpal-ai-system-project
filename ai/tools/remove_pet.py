@@ -8,6 +8,9 @@ logger = logging.getLogger(__name__)
 def remove_pet_tool(user_input: str, chat_history: list = None):
     """
     Identifies which pet the user wants to remove and returns a confirmation payload.
+
+    The database write runs only after the user confirms in the chat UI, which calls
+    :func:`core.models.remove_pet_for_owner` (same helper as the Dashboard).
     """
     owner = load_data()
     pet_names = [p.name for p in owner.pets]

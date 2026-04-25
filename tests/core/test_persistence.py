@@ -1,6 +1,6 @@
 import os
 import json
-from core import Owner, Pet, Task, save_data, load_data
+from core import Owner, Pet, Task, save_data, load_data, remove_pet_for_owner
 import core.persistence
 
 # ---------------------------------------------------------------------------
@@ -9,6 +9,7 @@ import core.persistence
 # Test: missing file returns default owner (first-run logic)
 # Test: corrupted JSON recovery (resilience to malformed files)
 # Test: parent-child relationship linkage persistence
+# Test: remove_pet_for_owner drops pet, nested tasks, and matching history rows
 # ---------------------------------------------------------------------------
 
 def test_save_load_round_trip():
@@ -108,3 +109,34 @@ def test_save_load_preserves_created_next_task_id():
         core.persistence.DATA_FILE = original_data_file
         if os.path.exists(test_file):
             os.remove(test_file)
+
+
+def test_remove_pet_for_owner_prunes_pets_and_history():
+    """remove_pet_for_owner: same contract as Owner.remove_pet (UI and AI entry point)."""
+    from core.models import CompletionRecord
+
+    owner = Owner(name="Alex", available_minutes=60)
+    owner.add_pet(Pet(name="Mochi", species="dog", age=2))
+    owner.add_pet(Pet(name="Luna", species="cat", age=1))
+    owner.history = [
+        CompletionRecord(
+            task_id="a",
+            pet_name="Mochi",
+            task_title="Walk",
+            category="walk",
+            timestamp="2024-01-01T10:00:00",
+        ),
+        CompletionRecord(
+            task_id="b",
+            pet_name="Luna",
+            task_title="Feed",
+            category="feeding",
+            timestamp="2024-01-01T11:00:00",
+        ),
+    ]
+    assert remove_pet_for_owner(owner, "Mochi") is True
+    assert len(owner.pets) == 1
+    assert owner.pets[0].name == "Luna"
+    assert len(owner.history) == 1
+    assert owner.history[0].pet_name == "Luna"
+    assert remove_pet_for_owner(owner, "Nope") is False

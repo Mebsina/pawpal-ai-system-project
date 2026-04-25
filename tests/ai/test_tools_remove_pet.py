@@ -10,6 +10,7 @@ from ai.tools.remove_pet import remove_pet_tool
 # Test: generic removal inquiries trigger a selection menu
 # Test: Ollama service failure fallback to selection menu
 # Test: malformed JSON extraction failure resilience
+# Note: confirmed removals persist via remove_pet_for_owner (see test_persistence / test_models)
 # ---------------------------------------------------------------------------
 
 @pytest.mark.usefixtures("mock_persistence")

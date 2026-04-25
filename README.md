@@ -5,7 +5,7 @@ PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It 
 ## Features
 
 - **Owner setup**: enter your name and daily time budget; fields lock after saving with an Edit button to unlock
-- **Multi-pet support**: add any number of pets (name, species, age, and optional special needs); switch between pets to manage their tasks; each pet's special needs are summarized below the task table
+- **Multi-pet support**: add any number of pets (name, species, age, and optional special needs) on the Dashboard; remove a pet via **Remove** then confirm or cancel on the Dashboard, or through the AI assistant with confirmation; switch between pets to manage their tasks; each pet's special needs are summarized below the task table
 - **Task manager**: add tasks with title, duration, priority, category, frequency, and scheduled time (15-minute step picker); tasks are only saved if no time conflict exists
 - **Conflict detection**: Warns during task creation if another task overlaps within the same duration window across any pet. Uses interval-based logic rather than simple time-string matching.
 - **Sort and filter**: sort tasks by scheduled time, priority, or duration; filter by priority; high-priority badge shows count of outstanding items
@@ -261,9 +261,9 @@ PawPal+ maintains a high-integrity, regression-proof codebase with **>95% test c
 python -m pytest --cov=ai --cov=core --cov-report=term-missing tests
 ```
 
-Current Suite: **135 Tests Passed**  
+Current Suite: **139 Tests Passed**  
 
-Overall Coverage: **98%**
+Overall Coverage: **98%** (`ai` + `core` with `pytest-cov`)
 
 ### Core System Tests
 - **Data Integrity**: Verifies that task completion toggles correctly, pet additions scale properly, and primary keys (UUIDs) remain globally unique for accurate persistence.
@@ -279,14 +279,14 @@ Overall Coverage: **98%**
 - **Automated Validation**: Confirms that AI outputs are strictly checked against schemas and content guardrails (keyword scanning) before being processed by the application core.
 - **Reliability Auditing**: Verifies the lifecycle of the `ReliabilityAuditor`, which quantifies system health by aggregating **Confidence Scores** (0.0 to 1.0) and success rates for the system evaluation dashboard.
 - **Infrastructure**: Uses `unittest.mock` and a synchronized `SessionState` fixture in `conftest.py` to isolate tests from local Ollama and Streamlit states for deterministic execution. The `ReliabilityAuditor` limit test uses in-memory `json.load`/`json.dump` mocks to avoid 1,100 disk I/O cycles.
-- **Documentation Standard**: All **135 test cases** feature standardized header documentation for improved auditability.
+- **Documentation Standard**: All **139 test cases** feature standardized header documentation for improved auditability.
 
 ### System Capabilities Summary
 - **Proactive Anomaly Detection**: `AnalyticsEngine` identifies missed recurring tasks and triggers conversational alerts.
 - **Batch Plan Execution**: The AI assistant processes multiple pet requirements simultaneously and applies updates via batch confirmation.
 - **Human Evaluation**: Manually verified that "Smart Plan" suggestions respect species guidelines and historical patterns.
 
-*Summary: A total of **135 out of 135 tests** are passing. The system maintains a **96% total coverage** floor, with 100% coverage on all core logic files.*
+*Summary: A total of **139 out of 139 tests** are passing. Coverage for `ai` and `core` is **98%** with the command above.*
 
 ## Reflection
 

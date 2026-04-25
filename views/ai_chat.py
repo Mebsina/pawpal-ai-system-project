@@ -1,7 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
 from datetime import date as ddate
-from core import Task, Pet, Scheduler, save_data
+from core import Task, Pet, Scheduler, save_data, remove_pet_for_owner
 from ai.router import classify_and_route
 from config import PRIORITY_EMOJI
 
@@ -81,9 +81,21 @@ def confirm_pet_add_cb(owner_ref, pt):
 
 def confirm_pet_remove_cb(owner_ref, pet_name):
     """Callback to delete a pet from the database."""
-    owner_ref.pets = [p for p in owner_ref.pets if p.name != pet_name]
+    if not remove_pet_for_owner(owner_ref, pet_name):
+        _complete_chat_action(
+            f"I couldn't find a pet named **{pet_name}** in your profile. Nothing was changed."
+        )
+        return
     save_data(owner_ref)
-    _complete_chat_action(f"Got it. **{pet_name}** has been removed from your profile along with all their records. Is there anything else I can help with?")
+    n = len(owner_ref.pets)
+    if n == 0:
+        st.session_state.active_pet_index = 0
+    else:
+        st.session_state.active_pet_index = min(st.session_state.active_pet_index, n - 1)
+    _complete_chat_action(
+        f"Got it. **{pet_name}** has been removed from your profile along with all their records. "
+        "Is there anything else I can help with?"
+    )
 
 def cancel_task_cb():
     """Callback to abort a pending action."""

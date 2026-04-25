@@ -112,7 +112,8 @@ class Owner:
     preferences:
         Optional key/value preferences (e.g. {"morning_tasks": ["walk"]}).
     pets:
-        List of pets the owner manages.
+        List of pets the owner manages. Remove with :meth:`remove_pet` or
+        :func:`remove_pet_for_owner` (shared with the Streamlit UI).
     """
     name: str
     available_minutes: int
@@ -128,6 +129,10 @@ class Owner:
         """Find a pet by name in the owner's managed list."""
         return next((p for p in self.pets if p.name == name), None)
 
+    def remove_pet(self, name: str) -> bool:
+        """Remove a pet by exact name and drop their completion history records."""
+        return remove_pet_for_owner(self, name)
+
     @classmethod
     def from_dict(cls, data: dict) -> Owner:
         """Create an Owner instance from a dictionary, including nested pets and history."""
@@ -136,3 +141,21 @@ class Owner:
         pets = [Pet.from_dict(p) for p in pets_data]
         history = [CompletionRecord.from_dict(h) for h in history_data]
         return cls(**data, pets=pets, history=history)
+
+
+def remove_pet_for_owner(owner: Owner, name: str) -> bool:
+    """Remove a pet by exact name and drop matching completion history.
+
+    Module-level helper so UI layers can call it directly (same behavior as
+    :meth:`Owner.remove_pet`) without relying on a possibly stale method binding
+    under Streamlit reloads.
+    """
+    if not name or not str(name).strip():
+        return False
+    name = str(name).strip()
+    before = len(owner.pets)
+    owner.pets = [p for p in owner.pets if p.name != name]
+    if len(owner.pets) == before:
+        return False
+    owner.history = [h for h in owner.history if h.pet_name != name]
+    return True

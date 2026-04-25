@@ -52,17 +52,18 @@ flowchart TD
 end
 
 subgraph AI["AI Service Layer"]
-    Router["ai/router.py<br/>Intent Classification"]
-    Tools["ai/tools/<br/>Granular Execution"]
-    Util["ai/utils.py<br/>JSON Sanitization"]
+    Router["ai/router.py<br/>Intent Classification + routing"]
+    Tools["ai/tools/<br/>Tool modules (add_task, planner, remove_pet, ...)"]
+    Util["ai/utils.py<br/>JSON sanitization + ReliabilityAuditor"]
 end
 
 subgraph Core["Core Model"]
-    Engine["core/<br/>Package"]
+    Engine["core/<br/>models + scheduler + analytics"]
 end
 
 subgraph Data["Data Layer"]
     Store["core/persistence.py<br/>+ data/pawpal_data.json"]
+    Metrics["data/reliability_metrics.json<br/>(written by ReliabilityAuditor)"]
 end
 
 Ollama([Ollama / llama3.2:3b])
@@ -74,8 +75,9 @@ Router <-->|Determine Action| Ollama
 Router --> Tools
 Tools <-->|Extract JSON\nvia Utility| Util
 Util <-->|Generates args| Ollama
-Tools -->|Silently apply changes| Engine
+Tools -->|Apply changes| Engine
 Engine <--> Store
+Util -.->|Log metrics| Metrics
 
     style Ollama fill:#cfe2f3
 ```
@@ -129,6 +131,7 @@ classDiagram
         +list pets
         +list history
         +add_pet(pet)
+        +remove_pet(name)
     }
     class Pet {
         +str name
@@ -147,6 +150,7 @@ classDiagram
         +bool completion_status
         +str scheduled_time
         +str id
+        +str created_next_task_id
         +mark_complete()
     }
     class CompletionRecord {
@@ -184,24 +188,25 @@ flowchart LR
     Input([User Input]) --> Agent
     
     subgraph System["PawPal+ Agentic Pipeline"]
-        Agent["<b>Agent</b><br/>router.py + tools/"]
-        Retriever["<b>Retriever</b><br/>persistence.py"]
-        Evaluator["<b>Evaluator / Tester</b><br/>JSON Sanitizer +<br/>Logic Validation"]
-        Auditor["<b>Reliability Auditor</b><br/>sidebar.py +<br/>metrics.json"]
+        Agent["<b>Agent</b><br/>ai/router.py + ai/tools/"]
+        Retriever["<b>Retriever</b><br/>core/persistence.py + pawpal_data.json"]
+        Evaluator["<b>Evaluator / Guardrails</b><br/>ai/utils.py (extract_json, validate_schema, restricted_keywords)"]
+        Auditor["<b>Reliability Auditor</b><br/>ai/utils.py::ReliabilityAuditor<br/>writes data/reliability_metrics.json"]
+        MetricsUI["<b>Metrics UI</b><br/>views/ai_analytics.py"]
     end
     
     Retriever -- "Fetches Data Context" --> Agent
     Agent <--> Ollama([Ollama LLM])
     Agent -- "Raw Output" --> Evaluator
     
-    Evaluator -- "Low Confidence / Error" --> Agent
+    Evaluator -- "Low Confidence / Missing Fields" --> Agent
     Evaluator -- "Valid Proposal" --> HumanCheck{<b>Human Check</b><br/>UI Confirmation}
     
     HumanCheck -- "Confirm" --> State([Updated JSON State])
     HumanCheck -- "Reject / Rephrase" --> Input
  
-    Agent -.->|"Logs Statistics"| Auditor
-    Evaluator -.->|"Logs Success/Fail"| Auditor
+    Agent -.->|"record_metric(...)"| Auditor
+    Auditor -.->|"renders"| MetricsUI
 ```
 
 | Component | Role | Logic |
@@ -248,7 +253,7 @@ AI features require Ollama to be running. The app works without it but NL task c
 | Schedule validation | Programmatic post-processing over prompt-only enforcement | Deterministic gap/budget/time checks regardless of LLM quality | Additional code complexity in validation loop |
 | Testing AI components | Mock Router responses | Fast, repeatable, removes Ollama from standard test runner checks | Cannot emulate pure hallucination boundaries |
 
-## 🧪 Testing and Reliability
+## Testing and Reliability
 
 PawPal+ maintains a high-integrity, regression-proof codebase with **>95% test coverage** across all AI and core modules.
 
@@ -289,6 +294,10 @@ Overall Coverage: **98%** (`ai` + `core` with `pytest-cov`)
 *Summary: A total of **139 out of 139 tests** are passing. Coverage for `ai` and `core` is **98%** with the command above.*
 
 ## Reflection
+
+## Model Card / Full Reflection
+
+See [`model_card.md`](model_card.md) for the full reflection write-up 
 
 ### Limitations and biases
 

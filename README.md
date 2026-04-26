@@ -14,15 +14,19 @@ PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It 
 - **Data persistence**: all data saves to `data/pawpal_data.json` automatically on every change; restored on refresh or restart
 
 ## AI Features
-- **Floating Conversational Hub**: Access the Llama AI instantly through a persistent action button. Optimized via direct `st.html` injection for zero latency and seamless visibility of your manual dashboard.
-- **Dynamic Intent Routing**: The `router.py` parses user intent organically and routes it internally with multi-turn "Context Locking".
-- **Smart Planner (`planner.py`) & Unified Status Report (`status.py`)**: Proactively scans behavioral history to identify gaps and provides a warm, conversational narrative summary of both completed successes and missed routines. Uses an agentic multi-turn loop (up to 5 refinement turns) with confidence scoring (target 0.9+), strict HH:MM time validation, **non-zero duration enforcement (>=1m)**, per-pet baseline care enforcement (feeding + activity), same-category proximity checks (≥120 min spacing), and daily time-budget awareness. **Enforces a strictly sequential Global Timeline**, ensuring tasks for different pets do not overlap if managed by a single caregiver. **Provides actionable guidance when the budget is full**, suggesting the user mark tasks as complete or increase the daily limit.
-- **Contextual Knowledge Base**: Seeded with industry-standard care (Dogs: 30m walk/2x feeding; Cats: play/grooming) to ground AI advice in best practices.
-- **Conversational Pet Management**: Add, remove, or list pets using natural language. Features strict user-confirmation guardrails for any data-altering actions.
-- **JSON Output Sanitization**: Integrated regex-based filtering strictly isolates python dictionaries from LLM conversational filler. Supports multiple nested blocks and malformed markdown resilience.
-- **Automated Schema Validation**: Strict structural checks ensure AI-generated payloads contain all mandatory keys and non-null values before execution.
-- **Content Guardrails**: Scans AI output for restricted keywords (e.g., medical advice, unauthorized diagnoses) to ensure advice is strictly grounded in pet care best practices.
-- **Automated Reliability Auditing**: A dedicated persistence module tracks intent classification confidence, extraction accuracy, and agentic loop efficiency, providing real-time "Evaluation Metrics" on the system dashboard.
+
+| Feature | Category | Base Component | Extra Enhancement (+2) | Guardrails | Primary Files |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **CRUD Pets** | RAG, Specialized Model | Adds, lists, or removes pets via natural language. | **Multiple Data Sources:** Reads the `pawpal_data.json` database dynamically before acting. | Mandatory human UI confirmation before any data deletion. | `ai/tools/add_pet.py`, `ai/tools/remove_pet.py` |
+| **Check Plans** | RAG, Specialized Model | Reads the local database and returns today's schedule. | **Enhancement:** Formats raw JSON data dynamically into a grouped narrative. | Clean, null-safe fallback for empty schedules. | `ai/tools/schedule.py` |
+| **Schedule a Task** | Specialized Model, Reliability System | Extracts title, duration, category, and scheduled time. | **Constrained Tone & Style:** Uses zero-temperature grounding (0.0) and rigid prompts to force pure JSON extraction instead of open chat. | Strict HH:MM time validation and `>0` duration enforcement. | `ai/tools/add_task.py` |
+| **Smart Planner** | Agentic Workflow, RAG, Specialized Model | AI plans, acts, and verifies schedule creation using retrieved data. | **Multi-Step Reasoning:** Uses an observable 5-turn refinement loop, plus a dynamic 6th LLM fallback call for conversational constraints. | Enforces strict daily minute budgets and interval overlap prevention. | `ai/tools/planner.py` |
+| **Check Status** | RAG, Specialized Model | Retrieves user history and missed tasks before answering. | **Multiple Data Sources:** Merges real-time anomalies from `AnalyticsEngine` with history. | Prohibits markdown lists to force a purely conversational tone. | `ai/tools/status.py` |
+| **Automated Testing** | Reliability or Testing System | Tracks model performance and confidence scores. | **Evaluation Harness:** Tracks confidence and success rates in production and across 139 mocked Pytest scenarios. | Schema validation strictly prevents partial payloads from executing. | `ai/utils.py`, `tests/` |
+
+*\* RAG = Retrieval-Augmented Generation*
+
+
 
 ## Demo
 
@@ -278,7 +282,7 @@ Overall Coverage: **98%** (`ai` + `core` with `pytest-cov`)
 
 ### AI Service Layer Tests
 - **Intent Reliability**: Proves the system correctly routes diverse natural language queries to the proper internal tools, while maintaining strict context locks during multi-turn interactions and keyword-based escapes.
-- **Agentic Refinement**: Verifies the 5-turn self-correction loop in the Smart Planner, ensuring the AI agent identifies its own scheduling errors and refines them until a high-confidence care plan is achieved.
+- **Agentic Refinement**: Verifies the 5-turn self-correction loop in the Smart Planner, including a dynamic 6th LLM call that synthesizes a positive, constraint-aware conversational fallback message if the schedule cannot be perfectly resolved.
 - **Safety & Grounding**: Confirms that data-modifying actions (like removing a pet) trigger mandatory user-confirmation menus and that AI suggestions are strictly grounded in pet-specific care guidelines.
 - **Payload Resiliency**: Tests the system's ability to extract structured data from "noisy" LLM output and handle malformed response formats using the hardened regex sanitizer.
 - **Automated Validation**: Confirms that AI outputs are strictly checked against schemas and content guardrails (keyword scanning) before being processed by the application core.

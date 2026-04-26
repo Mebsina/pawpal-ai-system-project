@@ -64,7 +64,7 @@ STANDARD_CARE_GUIDELINES: dict[str, list[dict]] = {
     "cat": [
         {"type": "feeding", "min_count": 2, "label": "Feed 2-3 times a day or ensure fresh food is available."},
         {"type": "play", "min_count": 1, "label": "Daily play session to stimulate hunting instincts."},
-        {"type": "grooming", "min_count": 0.5, "label": "Grooming session every 1-2 days for long-haired cats or seniors."}
+        {"type": "grooming", "min_count": 1, "label": "Grooming session every 1-2 days for long-haired cats or seniors."}
     ],
     "general": [
         {"type": "utility", "min_count": 1, "label": "Check and clean water bowls daily."},

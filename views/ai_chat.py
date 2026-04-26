@@ -55,7 +55,7 @@ def confirm_plan_cb(owner_ref, suggestions):
                     duration_minutes=s["duration_minutes"],
                     priority=s["priority"],
                     category=s["category"],
-                    frequency=s["frequency"],
+                    frequency=s.get("frequency", "once"),
                     scheduled_time=s["scheduled_time"],
                     due_date=s.get("due_date", ddate.today().isoformat()),
                     notes="Proactively suggested by PawPal AI"

@@ -4,26 +4,38 @@ from core import save_data
 def render_owner_info(owner):
     """Renders the owner information management section."""
     st.subheader("Owner Info")
-    owner_locked = bool(owner.name) and not st.session_state.owner_editing
+    
+    # Automatically enter editing mode if no name is set
+    if not owner.name:
+        st.session_state.owner_editing = True
+        
+    is_editing = st.session_state.owner_editing
     col1, col2, col3 = st.columns([3, 3, 1])
     
     with col1:
-        owner.name = st.text_input("Owner name", value=owner.name, disabled=owner_locked)
+        # Use st.text_input with the current owner name. 
+        # Modification only happens when in editing mode.
+        temp_name = st.text_input("Owner name", value=owner.name, disabled=not is_editing)
+        if is_editing:
+            owner.name = temp_name
     
     with col2:
-        owner.available_minutes = st.number_input(
+        temp_minutes = st.number_input(
             "Available minutes per day", min_value=1, max_value=480, value=owner.available_minutes,
-            disabled=owner_locked
+            disabled=not is_editing
         )
+        if is_editing:
+            owner.available_minutes = temp_minutes
     
     with col3:
         st.write("")  # vertical alignment spacer
-        if owner_locked:
+        if not is_editing:
             if st.button("Edit"):
                 st.session_state.owner_editing = True
                 st.rerun()
-        elif owner.name:
-            if st.button("Save"):
+        else:
+            # Only allow saving if a name has been entered
+            if st.button("Save", disabled=not owner.name.strip()):
                 st.session_state.owner_editing = False
                 save_data(owner)
                 st.rerun()

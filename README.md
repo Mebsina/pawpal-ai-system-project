@@ -11,7 +11,7 @@ PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It 
 - **Sort and filter**: sort tasks by scheduled time, priority, or duration; filter by priority; high-priority badge shows count of outstanding items
 - **Complete / uncomplete**: toggle completion per task using an **Interactive Checkbox** within the data table; completing a daily or weekly task automatically queues the next occurrence; uncompleting removes it
 - **Generate Plan**: filter by pet and status, schedule incomplete tasks within the time budget, display Scheduled / Could not fit / Complete tables. Features **Fully Reactive Rendering** where the plan automatically updates and persists throughout the session.
-- **Data persistence**: all data saves to `data/pawpal_data.json` automatically on every change; restored on refresh or restart
+- **Data persistence**: all data saves to `data/pawpal_data.json` automatically on every change; restored on refresh or restart. Includes hardened validation to prevent accidental overwrites with empty owner profiles during initialization.
 
 ## AI Features
 

@@ -188,8 +188,8 @@ def test_suggest_schedule_refines_up_to_five_turns(mock_ollama, mock_owner):
     with patch("ai.tools.planner.load_data", return_value=mock_owner):
         result = planner_tool("Plan")
     
-    assert mock_ollama.call_count == 5
-    assert "Note:** Some issues remain" in result["message"]
+    assert mock_ollama.call_count == 6  # 5 loop turns + 1 dynamic fallback generator turn
+    assert "Here is your smart plan" in result["message"]
 
 @pytest.mark.usefixtures("mock_persistence")
 def test_suggest_schedule_respects_daily_time_budget(mock_ollama, mock_owner):

@@ -84,16 +84,24 @@ ANOMALIES/MISSED TASKS:
 {json.dumps(anomalies, indent=2)}
 
 CRITICAL GOALS:
-1. BUDGET ADHERENCE: Your total SUGGESTED duration must NOT exceed the {remaining_budget}m remaining budget.
-2. NO RESCHEDULING: This tool ONLY adds missing tasks. If a task type (e.g., 'Walk') already exists for a pet today, do NOT suggest it again with 'Rescheduled' or a different time.
-3. BASELINE CARE: If REMAINING BUDGET allows (>= 15m), ensure every pet has at least one activity and one feeding today.
-4. SEQUENTIAL PLANNING: You are a single caregiver. New suggestions must NOT overlap with each other OR existing occupied slots.
-5. SPECIAL NEEDS: Senior/Arthritic pets like Luna require gentle play and meds.
+1. BUDGET ADHERENCE: Your total SUGGESTED duration must NOT exceed the {remaining_budget}m remaining budget. If a guideline requires a 30m task but you only have 15m left, you MUST shorten the task to fit the budget. Budget adherence is strictly more important than guideline minimums.
+2. ONLY ADD NEW TASKS: This tool ONLY adds missing tasks. Never append tags like '(Rescheduled)' or '(Late)' to task titles. If a task type already exists for a pet today, do NOT suggest it again.
+3. PRIORITIZE GUIDELINES FIRST: You MUST fulfill the missing PET CARE GUIDELINES before suggesting any creative or extra tasks. Only suggest extra tasks if all guidelines are met AND there is budget remaining.
+4. HIGH PRIORITY FIRST: If the budget is tight, you MUST schedule 'high' priority tasks (like feedings and meds) for ALL pets before you spend budget on 'medium' or 'low' priority tasks. Place all 'high' priority tasks at the very top of your JSON 'suggestions' array!
+5. SEQUENTIAL PLANNING: You are a single caregiver. New suggestions must NOT overlap with each other OR existing occupied slots.
+6. SPECIAL NEEDS: Pay close attention to each pet's 'special_needs' list. For example, senior or arthritic pets require gentle play and precise medication scheduling.
+7. PET MATCHING: You MUST ensure that you assign missing tasks to the EXACT 'pet_name' that needs them according to the anomalies/feedback. Do not mix up pets.
 
 Return strictly a JSON dictionary:
 - "summary": (string) A warm welcome explaining why these tasks were chosen.
-- "suggestions": (list of objects) [{{"pet_name": str, "title": str, "scheduled_time": "HH:MM", "duration_minutes": int, "priority": str, "category": str, "frequency": str}}]
 - "confidence": (float) 0.0-1.0 score.
+- "suggestions": A list of task objects, where each object MUST have:
+    - "pet_name": (string) The exact pet name (e.g., "Luna", "Max").
+    - "title": (string) The task activity (e.g., "Morning Walk", "Feeding session").
+    - "scheduled_time": (string) "HH:MM" format (24-hour).
+    - "duration_minutes": (integer) Length of task. Set feeding tasks strictly to 5.
+    - "priority": (string) EXACTLY "high" (meds/feeding), "medium" (baseline care), or "low" (extras).
+    - "category": (string) EXACTLY one of: "walk", "feeding", "meds", "grooming", "play", "training", "vet", "bath", or "general".
 
 NOTE: duration_minutes MUST be a positive integer. Skip low-priority tasks if the budget is tight.
 ABSOLUTELY NO CONVERSATIONAL TEXT outside the JSON."""
@@ -287,11 +295,50 @@ ABSOLUTELY NO CONVERSATIONAL TEXT outside the JSON."""
             if turn == MAX_TURNS - 1:
                 pet_count = len({s["pet_name"] for s in valid_suggestions})
                 task_count = len(valid_suggestions)
-                warnings = "\n".join(f"- {i}" for i in issues)
                 logger.warning(f"[planner] Max turns reached with {len(issues)} unresolved issue(s). confidence={confidence}")
+                
+                # Generate a creative AI message explaining the compromises
+                gap_issues = [i for i in issues if i.startswith("GAP:")]
+                warnings_str = "\n".join(f"- {i}" for i in gap_issues)
+                
+                if gap_issues:
+                    instruction = "explicitly list ALL the missing tasks from the provided constraints using the phrasing: 'we suggest you to add [Task] for [Pet]'."
+                else:
+                    instruction = "Do not list any specific tasks, just note that we couldn't space everything out perfectly."
+
+                prompt = (
+                    f"Write a friendly but brief 1-2 sentence note. "
+                    f"Start EXACTLY with this phrase: 'This is everything for the {budget}-minute timeframe, however, '. "
+                    f"Then {instruction} "
+                    f"STRICT INSTRUCTION: You MUST ONLY list tasks that appear in the constraints below. DO NOT invent or hallucinate extra tasks (like swimming or grooming) that are not listed! "
+                    f"Format the missing tasks naturally. If a missing task doesn't have a specific duration listed, suggest 15 minutes (but strictly suggest 5 minutes for feedings). "
+                    f"Do NOT use quotation marks around the tasks. Do NOT include the pet's species (like '(dog)'). "
+                    f"Do NOT use robotic phrases like 'task is incomplete' or 'manually add the reminder'. "
+                    f"Do NOT use conversational fluff like 'I wanted to let you know'. "
+                    f"Do NOT mention 'standard guidelines', 'baselines', or 'requirements'. "
+                    f"Output ONLY the raw message text. Do not include any preambles. "
+                    f"Do not use technical jargon like 'GAP' or 'OVER_BUDGET'. "
+                    f"Here are the exact missing tasks to draw from (DO NOT INVENT OTHERS):\n{warnings_str if gap_issues else 'No missing tasks, just scheduling conflicts.'}"
+                )
+                
+                try:
+                    fallback_res = ollama.chat(
+                        model=MODEL_NAME,
+                        messages=[{"role": "user", "content": prompt}],
+                        options={"temperature": 0.7}
+                    )
+                    # Strip any leading/trailing whitespace and quotation marks
+                    friendly_warning = fallback_res.message.content.strip(' "\'')
+                except Exception as e:
+                    logger.error(f"[planner] Fallback message generation failed: {e}")
+                    friendly_warning = (
+                        "I did my best to build a complete schedule, but we're running a little tight on time! "
+                        "I had to leave out a few recommended activities to ensure everything fits perfectly."
+                    )
+                
                 final_result = {
                     "type": "plan_suggestion",
-                    "message": f"Here is your smart plan: {task_count} task(s) for {pet_count} pet(s).\n\n**Note:** Some issues remain:\n{warnings}",
+                    "message": f"Here is your smart plan: {task_count} task(s) for {pet_count} pet(s).\n\n{friendly_warning}",
                     "suggestions": valid_suggestions
                 }
                 ReliabilityAuditor.record_metric("Agentic_Planning", confidence=confidence, turns=MAX_TURNS, success=False)

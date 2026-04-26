@@ -19,7 +19,7 @@ from ai.router import classify_and_route
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("keyword", ["cancel", "stop", "nevermind", "start over"])
-def test_router_escape_keywords_parametrized(mock_session_state, keyword):
+def test_router_escape_keywords_parametrized(mock_session_state, mock_ollama, keyword):
     """Ensure all escape keywords release intent locks immediately."""
     mock_session_state.active_intent = "ADD_TASK"
     classify_and_route(keyword)

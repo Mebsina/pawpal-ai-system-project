@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 from datetime import date as ddate
 from core import Task, Pet, Scheduler, save_data, remove_pet_for_owner
 from ai.router import classify_and_route
@@ -224,7 +223,7 @@ def ai_chat_dialog(owner):
 
 def render_floating_button():
     """Injects Javascript to style the 'Ask AI' button as a floating action button."""
-    components.html(
+    st.html(
         """
         <script>
         function styleFloatingButton() {
@@ -254,6 +253,5 @@ def render_floating_button():
         setInterval(styleFloatingButton, 500);
         </script>
         """,
-        height=0,
-        width=0
+        unsafe_allow_javascript=True,
     )

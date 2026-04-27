@@ -22,7 +22,7 @@ PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It 
 | **Schedule a Task** | Specialized Model, Reliability System | Extracts title, duration, category, and scheduled time. | **Constrained Tone & Style:** Uses zero-temperature grounding (0.0) and rigid prompts to force pure JSON extraction instead of open chat. | Strict HH:MM time validation and `>0` duration enforcement. | `ai/tools/add_task.py` |
 | **Smart Planner** | Agentic Workflow, RAG, Specialized Model | AI plans, acts, and verifies schedule creation using retrieved data. | **Multi-Step Reasoning:** Uses an observable 5-turn refinement loop, plus a dynamic 6th LLM fallback call for conversational constraints. | Enforces strict daily minute budgets and interval overlap prevention. | `ai/tools/planner.py` |
 | **Check Status** | RAG, Specialized Model | Retrieves user history and missed tasks before answering. | **Multiple Data Sources:** Merges real-time anomalies from `AnalyticsEngine` with history. | Prohibits markdown lists to force a purely conversational tone. | `ai/tools/status.py` |
-| **Automated Testing** | Reliability or Testing System | Tracks model performance and confidence scores. | **Evaluation Harness:** Tracks confidence and success rates in production and across 139 mocked Pytest scenarios. | Schema validation strictly prevents partial payloads from executing. | `ai/utils.py`, `tests/` |
+| **Automated Testing** | Reliability or Testing System | Tracks model performance and confidence scores. | **Evaluation Harness:** Standalone `eval_ai.py` script replays 5 fixed prompts end-to-end with full case isolation (fresh `chat_history` + deep-copied `Owner` per case). Latest run: **5/5 passed, 100% pass rate, avg confidence 0.95**. Also covers 139 mocked Pytest scenarios. | Schema validation strictly prevents partial payloads from executing. | `ai/utils.py`, `eval_ai.py`, `tests/` |
 
 *\* RAG = Retrieval-Augmented Generation*
 
@@ -259,6 +259,19 @@ PawPal+ maintains a high-integrity, regression-proof codebase with **>95% test c
 ```bash
 python -m pytest --cov=ai --cov=core --cov-report=term-missing tests
 ```
+
+### Standalone Evaluation Script (mocked, no Ollama required)
+```bash
+python eval_ai.py
+```
+
+Replays five fixed prompts through the real router and tool modules with all Ollama calls mocked. Each case is fully isolated — `chat_history` resets and `Owner` state is deep-copied before every case.
+
+| Run | Cases | Passed | Failed | Pass Rate | Avg Confidence |
+|-----|-------|--------|--------|-----------|----------------|
+| Latest | 5 | 5 | 0 | **100%** | **0.95** |
+
+Feature breakdown: CRUD Pets 1/1 · Check Plans 1/1 · Schedule a Task 1/1 · Smart Planner 1/1 (agentic 2-turn refinement) · Check Status 1/1
 
 Current Suite: **139 Tests Passed**  
 

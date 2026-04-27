@@ -30,17 +30,7 @@ PawPal+ is an AI-powered pet care assistant built with Python and Streamlit. It 
 
 ## Demo
 
-### 1. Owner & Pet Setup
-![Owner and Pet Setup](assets/screenshots/1-owner-pet.png)
-
-### 2. Task Manager
-![Task Manager](assets/screenshots/2-task-manager.png)
-
-### 3. Task List
-![Task List](assets/screenshots/3-tasks.png)
-
-### 4. Generate Plan
-![Generate Plan](assets/screenshots/4-schedule.png)
+- **Loom Demo**: `https://www.loom.com/share/dd1285ab11214abd912afe854a911fcd`
 
 ## Architecture Overview
 
